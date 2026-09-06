@@ -44,6 +44,7 @@
 - writing-plans 写到 `docs/superpowers/plans/`
 - 带着未决阻塞性 TBD 就 promote
 - 为 bug/错字开 change
+- 主仓 propose 出未跟踪目录 → worktree 里实现并 archive → 合回后主仓残本仍在
 
 详情：[superpowers-bridge README](https://github.com/JiangWay/openspec-schemas/blob/main/superpowers-bridge/README.md#entry--exit-gates)。
 
@@ -52,6 +53,19 @@
 - 规格与任务以**简体中文**为主  
 - 功能实现前先有 OpenSpec artifacts；apply 阶段再写代码  
 - 高危本机操作（删除等）必须有用户确认闸门（见 product-brief）
+
+
+### Worktree 与 OpenSpec 目录约定
+
+Agent 常会为 apply 建 git worktree；**同一 change 的 propose → apply → archive 必须落在同一工作树**，避免主仓 `dev` 留下未跟踪的 `openspec/changes/<name>/` 残本。
+
+| 规则 | 做法 |
+|---|---|
+| 同一 change 同一目录 | 用户确认 `/opsx:propose` 后：若尚无隔离工作区，先建/进入 feature worktree，再在该路径写 artifacts；之后 apply/archive 不换仓 |
+| 复用已有 worktree | 已有相关 `.worktrees/<…>` 或功能分支工作树时，**禁止**在主仓再开同名 change，也禁止套娃 worktree |
+| 合入 `dev` 后清理 | 若主仓仍有 `?? openspec/changes/<已归档名>/`（与 `archive/` 重复的半成品），**删除、勿提交** |
+| 主仓 `dev` 保持干净 | 不在主仓半开 change；临时文件与功能分支隔离 |
+
 
 <!-- autoclaw:hermes-evolution-guidance -->
 ## Hermes-Evolution
