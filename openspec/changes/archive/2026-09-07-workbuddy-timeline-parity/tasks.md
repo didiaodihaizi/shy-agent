@@ -18,4 +18,4 @@
 ## 4. 验证
 
 - [x] 4.1 vitest + 相关组件单测；`tsc`（web）
-- [ ] 4.2 手动：流式 MD、搜索合并盒、完成耗时（worktree 内 `npm run dev`）
+- [x] 4.2 手动：流式 MD、搜索合并盒、完成耗时（worktree 内 `npm run dev`）
