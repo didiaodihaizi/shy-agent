@@ -32,6 +32,7 @@ import type {
   ProjectFileRenameResult,
   ProjectPickFileResult,
   ProjectPickFilesResult,
+  ComposerSavePasteImageResult,
   ProjectPickFolderResult,
   ProjectRevealResult,
   ProjectTreeListResult,
@@ -165,6 +166,11 @@ export interface ShyApi {
   pickFolder: () => Promise<ProjectPickFolderResult>
   pickFile: () => Promise<ProjectPickFileResult>
   pickFiles: () => Promise<ProjectPickFilesResult>
+  saveComposerPasteImage: (input: {
+    base64: string
+    mime?: string
+    name?: string
+  }) => Promise<ComposerSavePasteImageResult>
   projectReveal: (input: { projectId: string; absPath: string }) => Promise<ProjectRevealResult>
   projectFileReadDataUrl: (input: {
     projectId: string

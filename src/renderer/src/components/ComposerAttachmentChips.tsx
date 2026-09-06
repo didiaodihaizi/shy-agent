@@ -8,8 +8,10 @@ import {
 type Props = {
   skills: ComposerSkillChip[]
   attachments: ComposerAttachmentChip[]
-  onRemoveSkill: (id: string) => void
-  onRemoveAttachment: (path: string) => void
+  onRemoveSkill?: (id: string) => void
+  onRemoveAttachment?: (path: string) => void
+  /** 消息气泡内只读展示（无 ×） */
+  readOnly?: boolean
 }
 
 function SkillChip({
@@ -17,7 +19,7 @@ function SkillChip({
   onRemove
 }: {
   skill: ComposerSkillChip
-  onRemove: () => void
+  onRemove?: () => void
 }): React.JSX.Element {
   return (
     <span className="composer-chip composer-chip-skill" title={skill.name}>
@@ -25,14 +27,16 @@ function SkillChip({
         <path d="M12 3l2.2 4.5L19 8.2l-3.5 3.4.8 4.9L12 14.2 7.7 16.5l.8-4.9L5 8.2l4.8-.7L12 3z" />
       </svg>
       <span className="composer-chip-label">{skill.name}</span>
-      <button
-        type="button"
-        className="composer-chip-remove"
-        aria-label={`移除技能 ${skill.name}`}
-        onClick={onRemove}
-      >
-        ×
-      </button>
+      {onRemove ? (
+        <button
+          type="button"
+          className="composer-chip-remove"
+          aria-label={`移除技能 ${skill.name}`}
+          onClick={onRemove}
+        >
+          ×
+        </button>
+      ) : null}
     </span>
   )
 }
@@ -42,7 +46,7 @@ function FileChip({
   onRemove
 }: {
   attachment: ComposerAttachmentChip
-  onRemove: () => void
+  onRemove?: () => void
 }): React.JSX.Element {
   const [hover, setHover] = useState(false)
   const isImage = attachment.kind === 'image'
@@ -71,14 +75,16 @@ function FileChip({
         )}
       </svg>
       <span className="composer-chip-label">{attachment.name}</span>
-      <button
-        type="button"
-        className="composer-chip-remove"
-        aria-label={`移除文件 ${attachment.name}`}
-        onClick={onRemove}
-      >
-        ×
-      </button>
+      {onRemove ? (
+        <button
+          type="button"
+          className="composer-chip-remove"
+          aria-label={`移除文件 ${attachment.name}`}
+          onClick={onRemove}
+        >
+          ×
+        </button>
+      ) : null}
       {isImage && hover ? (
         <div className="composer-chip-preview" role="dialog" aria-label={`${attachment.name} 预览`}>
           <img src={attachmentPreviewSrc(attachment.path)} alt={attachment.name} />
@@ -92,16 +98,25 @@ export function ComposerAttachmentChips({
   skills,
   attachments,
   onRemoveSkill,
-  onRemoveAttachment
+  onRemoveAttachment,
+  readOnly = false
 }: Props): React.JSX.Element | null {
   if (skills.length === 0 && attachments.length === 0) return null
   return (
-    <div className="composer-chips" aria-label="本轮附件">
+    <div className={`composer-chips${readOnly ? ' is-readonly' : ''}`} aria-label="本轮附件">
       {skills.map((s) => (
-        <SkillChip key={s.id} skill={s} onRemove={() => onRemoveSkill(s.id)} />
+        <SkillChip
+          key={s.id}
+          skill={s}
+          onRemove={readOnly || !onRemoveSkill ? undefined : () => onRemoveSkill(s.id)}
+        />
       ))}
       {attachments.map((a) => (
-        <FileChip key={a.path} attachment={a} onRemove={() => onRemoveAttachment(a.path)} />
+        <FileChip
+          key={a.path}
+          attachment={a}
+          onRemove={readOnly || !onRemoveAttachment ? undefined : () => onRemoveAttachment(a.path)}
+        />
       ))}
     </div>
   )

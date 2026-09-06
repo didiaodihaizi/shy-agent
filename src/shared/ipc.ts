@@ -55,6 +55,7 @@ export const IPC = {
   projectPickFolder: 'shy:project-pick-folder',
   projectPickFile: 'shy:project-pick-file',
   projectPickFiles: 'shy:project-pick-files',
+  composerSavePasteImage: 'shy:composer-save-paste-image',
   projectTreeList: 'shy:project-tree-list',
   projectFileRead: 'shy:project-file-read',
   projectFileReadDataUrl: 'shy:project-file-read-data-url',
@@ -297,6 +298,10 @@ export type ProjectPickFolderResult = { ok: true; path: string } | { ok: false }
 export type ProjectPickFileResult = ProjectPickFolderResult
 
 export type ProjectPickFilesResult = { ok: true; paths: string[] } | { ok: false }
+
+export type ComposerSavePasteImageResult =
+  | { ok: true; path: string }
+  | { ok: false; error: 'invalid' | 'write_failed' }
 
 export type ProjectRevealResult = { ok: true } | { ok: false; error: 'path_escape' | 'not_found' }
 

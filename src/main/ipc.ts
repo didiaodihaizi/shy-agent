@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
+import { join } from 'path'
 import {
   IPC,
   type AgentEvent,
@@ -13,6 +14,7 @@ import {
   type ProjectFileRenameInput,
   type ProjectType
 } from '../shared/ipc'
+import { encodeUserMessageContent } from '../shared/user-message-meta'
 import { getSettings, setSettings } from './settings/store'
 import { listOpenCodeGoModelsFromSettings } from './llm/opencode-go-models'
 import { parseMcpConfig, readMcpConfig, writeMcpConfig } from './mcp/config'
@@ -302,6 +304,34 @@ export function registerCoreIpc(): void {
     if (result.canceled || result.filePaths.length === 0) return { ok: false as const }
     return { ok: true as const, paths: result.filePaths }
   })
+  ipcMain.handle(
+    IPC.composerSavePasteImage,
+    async (_e, input: { base64: string; mime?: string; name?: string }) => {
+      try {
+        const mime = (input.mime || 'image/png').toLowerCase()
+        if (!mime.startsWith('image/')) return { ok: false as const, error: 'invalid' as const }
+        const raw = input.base64.includes(',') ? input.base64.split(',')[1]! : input.base64
+        const buf = Buffer.from(raw, 'base64')
+        if (buf.length < 1) return { ok: false as const, error: 'invalid' as const }
+        const ext =
+          mime === 'image/jpeg' || mime === 'image/jpg'
+            ? 'jpg'
+            : mime === 'image/webp'
+              ? 'webp'
+              : mime === 'image/gif'
+                ? 'gif'
+                : 'png'
+        const dir = join(getShyPaths().artifactsDir, 'composer-paste')
+        await mkdir(dir, { recursive: true })
+        const safeName = (input.name || `paste-${Date.now()}.${ext}`).replace(/[^\w.\-()+]/g, '_')
+        const abs = join(dir, safeName)
+        await writeFile(abs, buf)
+        return { ok: true as const, path: abs }
+      } catch {
+        return { ok: false as const, error: 'write_failed' as const }
+      }
+    }
+  )
   ipcMain.handle(IPC.projectReveal, async (_e, input: { projectId: string; absPath: string }) => {
     const project = getProject(input.projectId)
     if (!project) return { ok: false as const, error: 'not_found' as const }
@@ -579,15 +609,20 @@ export function registerCoreIpc(): void {
           message: req.message,
           skills: req.skills,
           attachments: req.attachments,
-          emitStatus: (msg) => emit({ type: 'status', message: msg }),
           emitNotify: (msg) => emit({ type: 'notify', message: msg })
         })
         message = prepared.message
       }
 
+      const displayMessage = encodeUserMessageContent(req.message, {
+        skills: req.skills,
+        attachments: req.attachments
+      })
+
       await runAgent({
         sessionId: req.sessionId,
         message,
+        displayMessage,
         mode: req.mode as AgentMode,
         verifyCommand: req.verifyCommand,
         ...(req.activeView ? { activeView: req.activeView } : {}),

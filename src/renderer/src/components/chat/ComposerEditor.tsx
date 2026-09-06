@@ -94,7 +94,8 @@ export function useComposerEditor(h: ComposerHandlers): Editor {
         class: 'composer-editor-area',
         'aria-label': '消息输入'
       },
-      handleKeyDown: (_view, event) => h.keydownRef.current(event)
+      handleKeyDown: (_view, event) => h.keydownRef.current(event),
+      handlePaste: (_view, event) => h.pasteRef.current(event)
     },
     onUpdate: ({ editor }) => h.onUpdateRef.current?.(editor)
   })

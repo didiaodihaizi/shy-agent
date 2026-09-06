@@ -17,6 +17,8 @@ export type MentionMenuState = {
 export type ComposerHandlers = {
   /** 每次渲染更新；返回 true 表示已消费 */
   keydownRef: MutableRefObject<(event: KeyboardEvent) => boolean>
+  /** 粘贴图片等；返回 true 表示已消费 */
+  pasteRef: MutableRefObject<(event: ClipboardEvent) => boolean>
   materialsRef: MutableRefObject<MaterialItem[]>
   placeholderRef: MutableRefObject<string>
   onUpdateRef: MutableRefObject<(editor: Editor) => void>

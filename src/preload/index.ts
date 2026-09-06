@@ -41,6 +41,7 @@ import {
   type ProjectFileReadDataUrlResult,
   type ProjectPickFileResult,
   type ProjectPickFilesResult,
+  type ComposerSavePasteImageResult,
   type ProjectPickFolderResult,
   type ProjectRevealResult,
   type ProjectTreeListResult,
@@ -192,6 +193,11 @@ const shy = {
   pickFolder: (): Promise<ProjectPickFolderResult> => ipcRenderer.invoke(IPC.projectPickFolder),
   pickFile: (): Promise<ProjectPickFileResult> => ipcRenderer.invoke(IPC.projectPickFile),
   pickFiles: (): Promise<ProjectPickFilesResult> => ipcRenderer.invoke(IPC.projectPickFiles),
+  saveComposerPasteImage: (input: {
+    base64: string
+    mime?: string
+    name?: string
+  }): Promise<ComposerSavePasteImageResult> => ipcRenderer.invoke(IPC.composerSavePasteImage, input),
   projectReveal: (input: { projectId: string; absPath: string }): Promise<ProjectRevealResult> =>
     ipcRenderer.invoke(IPC.projectReveal, input),
   projectFileReadDataUrl: (input: {

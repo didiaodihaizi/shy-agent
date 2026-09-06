@@ -23,12 +23,14 @@ import { ProjectPicker } from './ProjectPicker'
 import { PermissionPopover } from './PermissionPopover'
 import { ComposerPlusMenu } from './ComposerPlusMenu'
 import { ComposerAttachmentChips } from './ComposerAttachmentChips'
+import { MsgUserAttachments } from './MsgUserAttachments'
 import {
   appendAttachmentChips,
   appendSkillChip,
   type ComposerAttachmentChip,
   type ComposerSkillChip
 } from '../lib/composerAttachments'
+import { decodeUserMessageContent } from '../../../shared/user-message-meta'
 import {
   BIND_ERROR_LABEL,
   chatStatusTone,
@@ -85,6 +87,8 @@ type Msg = {
   toolError?: string
   durationMs?: number
   reasoningStartedAt?: number
+  skills?: ComposerSkillChip[]
+  attachments?: ComposerAttachmentChip[]
 }
 
 function toMsg(m: {
@@ -94,7 +98,28 @@ function toMsg(m: {
   createdAt: string
   kind?: 'result'
 }): Msg {
-  return { id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, kind: m.kind, streaming: false, toolStatus: m.role === 'tool' ? 'done' : undefined }
+  if (m.role === 'user') {
+    const { text, meta } = decodeUserMessageContent(m.content)
+    return {
+      id: m.id,
+      role: m.role,
+      content: text,
+      createdAt: m.createdAt,
+      kind: m.kind,
+      streaming: false,
+      skills: meta.skills,
+      attachments: meta.attachments as ComposerAttachmentChip[] | undefined
+    }
+  }
+  return {
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    createdAt: m.createdAt,
+    kind: m.kind,
+    streaming: false,
+    toolStatus: m.role === 'tool' ? 'done' : undefined
+  }
 }
 
 // zcode-home-replica：3 条列表式示例（替换原 pills 建议）
@@ -233,6 +258,7 @@ export function ChatWorkspace({
   placeholderRef.current =
     mode === 'goal' ? '描述你的目标…' : '向 shy 提问，使用 / 选择命令，@ 引用素材'
   const keydownRef = useRef<(event: KeyboardEvent) => boolean>(() => false)
+  const pasteRef = useRef<(event: ClipboardEvent) => boolean>(() => false)
   const onUpdateRef = useRef<(editor: Editor) => void>(() => {})
   const menuPropsRef = useRef<SuggestionBridgeProps | null>(null)
   const slashOpenRef = useRef(false)
@@ -436,6 +462,7 @@ export function ChatWorkspace({
 
   const editor = useComposerEditor({
     keydownRef,
+    pasteRef,
     materialsRef,
     placeholderRef,
     onUpdateRef,
@@ -523,7 +550,51 @@ export function ChatWorkspace({
     const plain = serializeComposerText(ed)
     const q = plain.startsWith('/') ? plain.slice(1).trim() : null
     setSlashQuery((prev) => (prev === q ? prev : q))
-    setCanSend(!ed.isEmpty)
+    setCanSend(
+      !ed.isEmpty || composerSkills.length > 0 || composerAttachments.length > 0
+    )
+  }
+
+  useEffect(() => {
+    setCanSend(
+      Boolean(editor && !editor.isEmpty) ||
+        composerSkills.length > 0 ||
+        composerAttachments.length > 0
+    )
+  }, [composerSkills, composerAttachments, editor])
+
+  pasteRef.current = (event: ClipboardEvent): boolean => {
+    const items = event.clipboardData?.items
+    if (!items?.length) return false
+    const imageFiles: File[] = []
+    for (const item of Array.from(items)) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile()
+        if (f) imageFiles.push(f)
+      }
+    }
+    if (imageFiles.length === 0) return false
+    event.preventDefault()
+    void (async () => {
+      const paths: string[] = []
+      for (const file of imageFiles) {
+        const buf = await file.arrayBuffer()
+        const bytes = new Uint8Array(buf)
+        let binary = ''
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!)
+        const base64 = btoa(binary)
+        const saved = await window.shy.saveComposerPasteImage({
+          base64,
+          mime: file.type || 'image/png',
+          name: file.name || undefined
+        })
+        if (saved.ok) paths.push(saved.path)
+      }
+      if (paths.length) {
+        setComposerAttachments((prev) => appendAttachmentChips(prev, paths))
+      }
+    })()
+    return true
   }
 
   const onToggleAlwaysAuthorize = async (): Promise<void> => {
@@ -658,8 +729,8 @@ export function ChatWorkspace({
         {variant === 'empty' ? (
           <>
             <div className="composer-card">
-              {chips}
               <div className="composer-inputline">
+                {chips}
                 <EditorContent editor={editor} />
               </div>
               {mentionOpen ? (
@@ -711,8 +782,8 @@ export function ChatWorkspace({
           </>
         ) : (
           <>
-            {chips}
             <div className="composer-inputline">
+              {chips}
               <EditorContent editor={editor} />
             </div>
             {mentionOpen ? (
@@ -1108,8 +1179,11 @@ export function ChatWorkspace({
           }
         ])
       } else if (ev.type === 'status' && ev.message) {
-        setStatus(ev.message)
-        if (ev.message.includes('暂停')) setPaused(true)
+        // 不展示「正在理解图片 / 交互式运行中」等到右上角；暂停相关仍更新 paused
+        if (ev.message.includes('暂停')) {
+          setPaused(true)
+          setStatus('已暂停')
+        }
       } else if (ev.type === 'error' && ev.message) {
         setMessages((prev) => [
           ...prev,
@@ -1188,15 +1262,18 @@ export function ChatWorkspace({
 
   const onSend = async (): Promise<void> => {
     const text = serializeComposerText(editor).trim()
-    if (!text || busy || !sessionId) return
     const skillsPayload = composerSkills.length ? [...composerSkills] : undefined
     const attachmentsPayload = composerAttachments.length ? [...composerAttachments] : undefined
+    if ((!text && !skillsPayload && !attachmentsPayload) || busy || !sessionId) return
     let detail = await window.shy.getSessionSummary(sessionId)
     // 草稿会话：首条消息发出前才落库，便于侧栏在发起对话后才出现
     if (!detail) {
       await window.shy.createSession({
         mode,
-        title: text.slice(0, 40),
+        title: (text || skillsPayload?.[0]?.name || attachmentsPayload?.[0]?.name || '新对话').slice(
+          0,
+          40
+        ),
         id: sessionId
       })
       if (sessionModel) {
@@ -1229,16 +1306,16 @@ export function ChatWorkspace({
     stickToBottomRef.current = true
     setBusy(true)
     setPaused(false)
-    setStatus(
-      attachmentsPayload?.some((a) => a.kind === 'image')
-        ? '正在理解图片…'
-        : mode === 'goal'
-          ? '目标推进中'
-          : '思考中'
-    )
+    setStatus('')
     setMessages((prev) => [
       ...prev,
-      { role: 'user', content: text, createdAt: new Date().toISOString() }
+      {
+        role: 'user',
+        content: text,
+        createdAt: new Date().toISOString(),
+        skills: skillsPayload,
+        attachments: attachmentsPayload
+      }
     ])
     const r = await window.shy.chat(
       chatPayload(
@@ -1279,17 +1356,8 @@ export function ChatWorkspace({
     await window.shy.resume(sessionId)
   }
 
-  const runningCls = chatStatusTone({ busy, paused, status })
-  let runningText = ''
-  if (busy) {
-    runningText = status || '思考中…'
-  } else if (paused) {
-    runningText = status || '已暂停'
-  } else {
-    runningText = status
-  }
-
   const sessionTitle = sessions.find((s) => s.id === sessionId)?.title?.trim() || '未命名会话'
+  const statusTone = chatStatusTone({ busy: false, paused: false, status })
 
   return (
     <div className="main chat-column">
@@ -1308,10 +1376,10 @@ export function ChatWorkspace({
               {codeLayout === 'ide' ? '普通布局' : '代码布局'}
             </button>
           ) : null}
-          {runningCls ? (
-            <div className={`status ${runningCls}`}>
+          {statusTone === 'err' ? (
+            <div className={`status ${statusTone}`}>
               <span className="status-dot" aria-hidden="true" />
-              {runningText}
+              {status}
             </div>
           ) : null}
           {showDockToggle ? <OpenWithMenu sessionId={sessionId} /> : null}
@@ -1433,7 +1501,8 @@ export function ChatWorkspace({
                           <div className={`msg msg-${m.role}`}>
                             {m.role === 'user' ? (
                               <div className="msg-bubble">
-                                <MarkdownBody content={m.content} />
+                                <MsgUserAttachments skills={m.skills} attachments={m.attachments} />
+                                {m.content.trim() ? <MarkdownBody content={m.content} /> : null}
                               </div>
                             ) : null}
                             {m.role === 'system' ? <div className="msg-pill">{m.content}</div> : null}

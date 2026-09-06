@@ -20,6 +20,8 @@ export type { AgentEvent } from '../../shared/ipc'
 type RunArgs = {
   sessionId: string
   message: string
+  /** 落库展示用正文；缺省则用 message（与 LLM 同文） */
+  displayMessage?: string
   mode: AgentMode
   emit: (event: AgentEvent) => void
   waitConfirm: (action: string, detail: string) => Promise<boolean>
@@ -150,7 +152,7 @@ export async function runAgent(args: RunArgs): Promise<void> {
     })
 
     if (!resume) {
-      appendMessage(sessionId, 'user', message)
+      appendMessage(sessionId, 'user', args.displayMessage ?? message)
     }
 
     if (mode === 'goal') {
