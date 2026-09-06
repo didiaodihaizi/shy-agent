@@ -21,6 +21,14 @@ import type { SuggestionProps } from '@tiptap/suggestion'
 type SuggestionBridgeProps = SuggestionProps<MentionSuggestionItem>
 import { ProjectPicker } from './ProjectPicker'
 import { PermissionPopover } from './PermissionPopover'
+import { ComposerPlusMenu } from './ComposerPlusMenu'
+import { ComposerAttachmentChips } from './ComposerAttachmentChips'
+import {
+  appendAttachmentChips,
+  appendSkillChip,
+  type ComposerAttachmentChip,
+  type ComposerSkillChip
+} from '../lib/composerAttachments'
 import {
   BIND_ERROR_LABEL,
   chatStatusTone,
@@ -197,6 +205,8 @@ export function ChatWorkspace({
   const [mentionMaterials, setMentionMaterials] = useState<MaterialItem[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
   const [mentionMenu, setMentionMenu] = useState<MentionMenuState>({ open: false, items: [] })
+  const [composerSkills, setComposerSkills] = useState<ComposerSkillChip[]>([])
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachmentChip[]>([])
   const [lastResult, setLastResult] = useState<{
     tokenUsed: number
     rounds: number
@@ -417,8 +427,9 @@ export function ChatWorkspace({
       editor?.commands.clearContent()
       editor?.commands.focus()
     } else {
-      editor?.commands.setContent(`<p>使用技能 ${item.label}：</p>`)
-      editor?.commands.focus('end')
+      setComposerSkills((prev) => appendSkillChip(prev, { id: item.key, name: item.label }))
+      editor?.commands.clearContent()
+      editor?.commands.focus()
     }
     setSlashIndex(0)
   }
@@ -621,11 +632,33 @@ export function ChatWorkspace({
       )
     ) : null
 
+    const chips = (
+      <ComposerAttachmentChips
+        skills={composerSkills}
+        attachments={composerAttachments}
+        onRemoveSkill={(id) => setComposerSkills((prev) => prev.filter((s) => s.id !== id))}
+        onRemoveAttachment={(path) =>
+          setComposerAttachments((prev) => prev.filter((a) => a.path !== path))
+        }
+      />
+    )
+
+    const plusMenu = (
+      <ComposerPlusMenu
+        skills={skills}
+        onPickSkill={(skill) => setComposerSkills((prev) => appendSkillChip(prev, skill))}
+        onPickFiles={(paths) =>
+          setComposerAttachments((prev) => appendAttachmentChips(prev, paths))
+        }
+      />
+    )
+
     return (
       <div className={`composer-shell composer-shell-${variant}`}>
         {variant === 'empty' ? (
           <>
             <div className="composer-card">
+              {chips}
               <div className="composer-inputline">
                 <EditorContent editor={editor} />
               </div>
@@ -648,13 +681,7 @@ export function ChatWorkspace({
                 />
               ) : null}
               <div className="composer-bar">
-                <div className="composer-options">
-                  <button type="button" className="composer-plus" aria-label="添加" title="添加" disabled>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                  </button>
-                </div>
+                <div className="composer-options">{plusMenu}</div>
                 <div className="composer-actions">
                   {modelControl}
                   {!busy && !paused ? (
@@ -684,6 +711,7 @@ export function ChatWorkspace({
           </>
         ) : (
           <>
+            {chips}
             <div className="composer-inputline">
               <EditorContent editor={editor} />
             </div>
@@ -707,11 +735,7 @@ export function ChatWorkspace({
             ) : null}
             <div className="composer-bar">
               <div className="composer-options">
-                <button type="button" className="composer-plus" aria-label="添加" title="添加" disabled>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </button>
+                {plusMenu}
                 <PermissionPopover
                   alwaysAuthorize={alwaysAuthorize}
                   onToggle={onToggleAlwaysAuthorize}
@@ -771,6 +795,8 @@ export function ChatWorkspace({
     setMessages([])
     setStreamingTurn([])
     editor?.commands.clearContent()
+    setComposerSkills([])
+    setComposerAttachments([])
     let alive = true
     window.shy.getSessionSummary(sessionId).then((detail) => {
       if (!alive || currentSessionIdRef.current !== sessionId) return
@@ -1163,6 +1189,8 @@ export function ChatWorkspace({
   const onSend = async (): Promise<void> => {
     const text = serializeComposerText(editor).trim()
     if (!text || busy || !sessionId) return
+    const skillsPayload = composerSkills.length ? [...composerSkills] : undefined
+    const attachmentsPayload = composerAttachments.length ? [...composerAttachments] : undefined
     let detail = await window.shy.getSessionSummary(sessionId)
     // 草稿会话：首条消息发出前才落库，便于侧栏在发起对话后才出现
     if (!detail) {
@@ -1201,12 +1229,33 @@ export function ChatWorkspace({
     stickToBottomRef.current = true
     setBusy(true)
     setPaused(false)
-    setStatus(mode === 'goal' ? '目标推进中' : '思考中')
+    setStatus(
+      attachmentsPayload?.some((a) => a.kind === 'image')
+        ? '正在理解图片…'
+        : mode === 'goal'
+          ? '目标推进中'
+          : '思考中'
+    )
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text, createdAt: new Date().toISOString() }
     ])
-    await window.shy.chat(chatPayload({ sessionId, message: text, mode }, activeView))
+    const r = await window.shy.chat(
+      chatPayload(
+        {
+          sessionId,
+          message: text,
+          mode,
+          ...(skillsPayload ? { skills: skillsPayload } : {}),
+          ...(attachmentsPayload ? { attachments: attachmentsPayload } : {})
+        },
+        activeView
+      )
+    )
+    if (r.ok) {
+      setComposerSkills([])
+      setComposerAttachments([])
+    }
     onSessionsChanged?.()
   }
 

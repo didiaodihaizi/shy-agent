@@ -26,5 +26,16 @@ export const PRIVILEGED_SCHEMES: Array<{
       stream: true,
       corsEnabled: true
     }
+  },
+  {
+    /** Composer 附件预览：任意本机绝对路径（用户经对话框显式选中） */
+    scheme: 'shy-file',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      corsEnabled: true
+    }
   }
 ]

@@ -153,6 +153,17 @@ app.whenReady().then(() => {
       return new Response('bad request', { status: 400 })
     }
   })
+  // shy-file://a/<encodeURIComponent(absPath)> → 用户显式附加的本机文件预览
+  protocol.handle('shy-file', async (request) => {
+    try {
+      const u = new URL(request.url)
+      const absPath = decodeURIComponent(u.pathname.replace(/^\//, ''))
+      if (!absPath || absPath.includes('\0')) return new Response('bad request', { status: 400 })
+      return await respondFileWithRange(absPath, request)
+    } catch {
+      return new Response('bad request', { status: 400 })
+    }
+  })
   // Stage 3.2: 把 EventBus 桥接到 IPC,让 main emit 的事件自动推到 renderer
   // 通过 getMainWindow 闭包动态拿最新 mainWindow(支持重开窗口)
   bridgeEventBusToIpc(getDefaultBus(), () => {

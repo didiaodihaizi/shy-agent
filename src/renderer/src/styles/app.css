@@ -6023,8 +6023,17 @@
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  cursor: default;
+  cursor: pointer;
   padding: 0;
+}
+.composer-plus:hover:not(:disabled),
+.composer-plus.is-open {
+  background: #f0f2f5;
+  color: #1f2328;
+}
+.composer-plus:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 .composer-plus svg {
   width: 18px;
@@ -6032,6 +6041,219 @@
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
+}
+
+.composer-plus-root {
+  position: relative;
+  display: inline-flex;
+}
+
+.composer-plus-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(280px, 78vw);
+  padding: 8px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 32px rgba(15, 20, 34, 0.14);
+  z-index: 50;
+  text-align: left;
+}
+
+.composer-plus-item {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1f2328;
+  cursor: pointer;
+}
+.composer-plus-item svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  fill: none;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.composer-plus-item:hover {
+  background: #f3f4f6;
+}
+.composer-plus-item-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.composer-plus-item-desc {
+  font-size: 11.5px;
+  color: #9ca3af;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-plus-skills-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 8px;
+  font-size: 12.5px;
+  font-weight: 560;
+  color: #4b5563;
+}
+.composer-plus-back {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+}
+.composer-plus-back:hover {
+  background: #f3f4f6;
+  color: #1f2328;
+}
+.composer-plus-back svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.composer-plus-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  margin-bottom: 6px;
+}
+.composer-plus-search svg {
+  width: 14px;
+  height: 14px;
+  stroke: #9ca3af;
+  stroke-width: 1.8;
+  fill: none;
+  flex-shrink: 0;
+}
+.composer-plus-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #111827;
+}
+.composer-plus-search input::placeholder {
+  color: #9ca3af;
+}
+
+.composer-plus-skill-list {
+  max-height: 200px;
+  overflow: auto;
+}
+.composer-plus-empty {
+  padding: 10px 8px;
+  font-size: 12.5px;
+  color: #9ca3af;
+}
+
+.composer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 6px 8px;
+}
+.composer-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  border-radius: 999px;
+  background: #eef0f3;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1;
+}
+.composer-chip svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  fill: none;
+  flex-shrink: 0;
+}
+.composer-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-chip-remove {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+.composer-chip-remove:hover {
+  background: rgba(15, 20, 34, 0.08);
+  color: #374151;
+}
+.composer-chip-preview {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  padding: 6px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 28px rgba(15, 20, 34, 0.16);
+  z-index: 60;
+  pointer-events: none;
+}
+.composer-chip-preview img {
+  display: block;
+  max-width: 220px;
+  max-height: 160px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #f3f4f6;
 }
 
 .composer-footer-meta {

@@ -7,9 +7,10 @@ describe('renderer CSP', () => {
   const csp = /http-equiv="Content-Security-Policy"\s+content="([^"]+)"/.exec(html)?.[1] ?? ''
 
   it('允许素材协议用于封面、媒体、fetch 与 worker', () => {
-    expect(csp).toContain("img-src 'self' data: blob: shy-asset: shy-material:")
+    expect(csp).toContain("img-src 'self' data: blob: shy-asset: shy-material: shy-file:")
     expect(csp).toContain('media-src')
     expect(csp).toContain('shy-material:')
+    expect(csp).toContain('shy-file:')
     expect(csp).toContain('connect-src')
     expect(csp).toContain("worker-src 'self' blob:")
   })

@@ -8,4 +8,10 @@ describe('PRIVILEGED_SCHEMES', () => {
     expect(material?.privileges.stream).toBe(true)
     expect(material?.privileges.corsEnabled).toBe(true)
   })
+
+  it('shy-file 允许附件预览流式读取', () => {
+    const file = PRIVILEGED_SCHEMES.find((s) => s.scheme === 'shy-file')
+    expect(file?.privileges.supportFetchAPI).toBe(true)
+    expect(file?.privileges.stream).toBe(true)
+  })
 })
