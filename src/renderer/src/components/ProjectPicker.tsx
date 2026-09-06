@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Project, ProjectType } from '../../../shared/ipc'
+import type { Project } from '../../../shared/ipc'
+import { CreateProjectModal } from './CreateProjectModal'
 
 const NONE = ''
 const ADD = '__add__'
@@ -9,17 +10,19 @@ type Props = {
   disabled: boolean
   onChange: (projectId: string | null) => void
   onProjectsChanged?: () => void
+  /** 空状态底栏文案 */
+  emptyLabel?: string
 }
 
 export function ProjectPicker({
   value,
   disabled,
   onChange,
-  onProjectsChanged
+  onProjectsChanged,
+  emptyLabel = '选择工作空间'
 }: Props): React.JSX.Element {
   const [projects, setProjects] = useState<Project[]>([])
-  const [adding, setAdding] = useState(false)
-  const [error, setError] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
 
   const refresh = useCallback(async (): Promise<Project[]> => {
     const list = await window.shy.listProjects()
@@ -31,41 +34,31 @@ export function ProjectPicker({
     void refresh().catch(() => {})
   }, [refresh])
 
-  const addProject = async (type: ProjectType): Promise<void> => {
-    setAdding(false)
-    setError('')
-    const picked = await window.shy.pickFolder()
-    if (!picked.ok) return
-    const created = await window.shy.createProject({ type, rootPath: picked.path })
-    if (!created.ok) {
-      setError(created.error === 'root_path_taken' ? '该目录已有项目' : '创建失败')
-      return
-    }
-    await refresh()
-    onChange(created.project.id)
-    onProjectsChanged?.()
-  }
-
   const onSelect = (raw: string): void => {
     if (raw === ADD) {
-      setAdding(true)
+      setModalOpen(true)
       return
     }
-    setAdding(false)
-    setError('')
     onChange(raw === NONE ? null : raw)
   }
+
+  const selected = projects.find((p) => p.id === value)
+  const display =
+    selected != null
+      ? `${selected.name}${selected.type === 'code' ? ' · 代码' : ' · 素材'}`
+      : emptyLabel
 
   return (
     <div className="project-picker">
       <select
         className="project-picker-select"
-        aria-label="项目"
+        aria-label="工作空间"
         value={value ?? NONE}
         disabled={disabled}
         onChange={(e) => onSelect(e.target.value)}
+        title={display}
       >
-        <option value={NONE}>未选择项目</option>
+        <option value={NONE}>{emptyLabel}</option>
         {projects.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}
@@ -76,17 +69,12 @@ export function ProjectPicker({
           添加项目…
         </option>
       </select>
-      {adding && !disabled ? (
-        <div className="project-picker-types" role="group" aria-label="项目类型">
-          <button type="button" onClick={() => void addProject('code')}>
-            代码项目
-          </button>
-          <button type="button" onClick={() => void addProject('material')}>
-            素材项目
-          </button>
-        </div>
-      ) : null}
-      {error ? <span className="project-picker-error">{error}</span> : null}
+      <CreateProjectModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={(id) => onChange(id)}
+        onProjectsChanged={onProjectsChanged}
+      />
     </div>
   )
 }

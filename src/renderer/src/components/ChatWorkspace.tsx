@@ -20,6 +20,7 @@ import type { SuggestionProps } from '@tiptap/suggestion'
 
 type SuggestionBridgeProps = SuggestionProps<MentionSuggestionItem>
 import { ProjectPicker } from './ProjectPicker'
+import { PermissionPopover } from './PermissionPopover'
 import {
   BIND_ERROR_LABEL,
   chatStatusTone,
@@ -591,102 +592,114 @@ export function ChatWorkspace({
     return () => observer?.disconnect()
   }, [])
 
-  const composerInner = (): React.JSX.Element => (
-    <div className="composer-shell">
-      <div className="composer-inputline">
-        <EditorContent editor={editor} />
-      </div>
-      {mentionOpen ? (
-        <SlashMenu
-          open
-          items={mentionItems}
-          activeIndex={activeMentionIndex}
-          onSelect={selectMention}
-          onHover={setMentionIndex}
+  const composerInner = (variant: 'empty' | 'chat'): React.JSX.Element => {
+    const projectPicker =
+      shouldShowProjectPicker(boundProjectId) ? (
+        <ProjectPicker
+          value={boundProjectId ?? pendingProjectId}
+          disabled={isProjectPickerLocked({
+            hasUserMessages: messages.some((m) => m.role === 'user'),
+            projectId: boundProjectId
+          })}
+          onChange={setPendingProjectId}
+          onProjectsChanged={onSessionsChanged}
+          emptyLabel="选择工作空间"
         />
-      ) : null}
-      {slashQuery !== null ? (
-        <SlashMenu
-          open
-          items={slashItems}
-          activeIndex={activeSlashIndex}
-          onSelect={selectSlash}
-          onHover={setSlashIndex}
+      ) : null
+
+    const modelControl = effectiveModel ? (
+      provider === 'opencode-go' ? (
+        <Select
+          className="model-pill-select"
+          value={effectiveModel}
+          options={modelOptions}
+          onChange={(model) => void onSessionModelChange(model)}
+          ariaLabel="会话模型"
         />
-      ) : null}
-      <div className="composer-bar">
-        <div className="composer-options">
-          {shouldShowProjectPicker(boundProjectId) ? (
-            <ProjectPicker
-              value={boundProjectId ?? pendingProjectId}
-              disabled={isProjectPickerLocked({
-                hasUserMessages: messages.some((m) => m.role === 'user'),
-                projectId: boundProjectId
-              })}
-              onChange={setPendingProjectId}
-              onProjectsChanged={onSessionsChanged}
-            />
-          ) : null}
-          <button
-            type="button"
-            className={`full-access${alwaysAuthorize ? ' on' : ''}`}
-            onClick={() => void onToggleAlwaysAuthorize()}
-            aria-pressed={alwaysAuthorize}
-            title="完全访问：开启后工具不再逐条确认"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            完全访问
-          </button>
-          {effectiveModel ? (
-            provider === 'opencode-go' ? (
-              <Select
-                className="model-pill-select"
-                value={effectiveModel}
-                options={modelOptions}
-                onChange={(model) => void onSessionModelChange(model)}
-                ariaLabel="会话模型"
-              />
-            ) : (
-              <span className="model-pill">{effectiveModel}</span>
-            )
-          ) : null}
+      ) : (
+        <span className="model-pill">{effectiveModel}</span>
+      )
+    ) : null
+
+    return (
+      <div className={`composer-shell composer-shell-${variant}`}>
+        <div className="composer-inputline">
+          <EditorContent editor={editor} />
         </div>
-        <div className="composer-actions">
-          {busy && !paused ? (
-            <>
-              <button type="button" className="btn btn-ghost" onClick={() => void onPause()}>
-                暂停
-              </button>
-              <button type="button" className="btn btn-danger" onClick={() => void onCancel()}>
-                停止
-              </button>
-            </>
-          ) : null}
-          {paused ? (
-            <button type="button" className="btn btn-primary" onClick={() => void onResume()}>
-              继续
-            </button>
-          ) : null}
-          {!busy && !paused ? (
-            <button
-              type="button"
-              className="composer-send"
-              onClick={() => void onSend()}
-              disabled={!canSend}
-              aria-label="发送"
-              title="发送（回车）"
-            >
+        {mentionOpen ? (
+          <SlashMenu
+            open
+            items={mentionItems}
+            activeIndex={activeMentionIndex}
+            onSelect={selectMention}
+            onHover={setMentionIndex}
+          />
+        ) : null}
+        {slashQuery !== null ? (
+          <SlashMenu
+            open
+            items={slashItems}
+            activeIndex={activeSlashIndex}
+            onSelect={selectSlash}
+            onHover={setSlashIndex}
+          />
+        ) : null}
+        <div className="composer-bar">
+          <div className="composer-options">
+            <button type="button" className="composer-plus" aria-label="添加" title="添加" disabled>
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 19V5M6 11l6-6 6 6" />
+                <path d="M12 5v14M5 12h14" />
               </svg>
             </button>
-          ) : null}
+            {variant === 'chat' ? (
+              <PermissionPopover
+                alwaysAuthorize={alwaysAuthorize}
+                onToggle={onToggleAlwaysAuthorize}
+              />
+            ) : null}
+          </div>
+          <div className="composer-actions">
+            {modelControl}
+            {busy && !paused ? (
+              <>
+                <button type="button" className="btn btn-ghost" onClick={() => void onPause()}>
+                  暂停
+                </button>
+                <button type="button" className="btn btn-danger" onClick={() => void onCancel()}>
+                  停止
+                </button>
+              </>
+            ) : null}
+            {paused ? (
+              <button type="button" className="btn btn-primary" onClick={() => void onResume()}>
+                继续
+              </button>
+            ) : null}
+            {!busy && !paused ? (
+              <button
+                type="button"
+                className="composer-send"
+                onClick={() => void onSend()}
+                disabled={!canSend}
+                aria-label="发送"
+                title="发送（回车）"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 19V5M6 11l6-6 6 6" />
+                </svg>
+              </button>
+            ) : null}
+          </div>
         </div>
+        {variant === 'empty' ? (
+          <div className="composer-footer-meta">
+            {projectPicker}
+            <PermissionPopover alwaysAuthorize={alwaysAuthorize} onToggle={onToggleAlwaysAuthorize} />
+          </div>
+        ) : null}
       </div>
-    </div>
-  )
+    )
+  }
 
   useLayoutEffect(() => {
     currentSessionIdRef.current = sessionId
@@ -1220,7 +1233,7 @@ export function ChatWorkspace({
               {!hasConversation ? (
                 <div className="empty-state">
                   <h1 className="empty-title">{greetingForHour(new Date().getHours())}</h1>
-                  <div className="empty-composer">{composerInner()}</div>
+                  <div className="empty-composer">{composerInner('empty')}</div>
                   <div className="example-list">
                     {SUGGESTIONS.map((s) => (
                       <button
@@ -1312,7 +1325,7 @@ export function ChatWorkspace({
 
             {hasConversation ? (
               <>
-                <div className="composer-dock">{composerInner()}</div>
+                <div className="composer-dock">{composerInner('chat')}</div>
               </>
             ) : null}
           </div>

@@ -22,6 +22,8 @@ import {
   setMcpServerEnabled,
   authorizeMcpServer
 } from './mcp-config-ops'
+import { assertWithinWorkspace } from './path-fence'
+import { getSettings } from '../../settings/store'
 
 /**
  * shell-session-side-panel：本文件内置工具中需要打点文件操作到 session_files 表的工具：
@@ -44,6 +46,16 @@ function isHighRiskOverwrite(path: string): boolean {
 export function resolveWorkspacePath(workspaceDir: string, path: string): string {
   if (isAbsolute(path)) return path
   return join(workspaceDir, path)
+}
+
+/** 默认权限下校验路径围栏；完全访问跳过 */
+async function guardWorkspacePath(
+  workspaceDir: string,
+  absPath: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const settings = await getSettings()
+  if (settings.autoApproveTools) return { ok: true }
+  return assertWithinWorkspace(absPath, workspaceDir)
 }
 
 function workspaceCwdHint(workspaceDir: string): string {
@@ -113,6 +125,8 @@ export function registerBuiltinTools(): void {
     schema: z.object({ path: z.string(), maxChars: z.number().optional() }),
     run: async ({ path, maxChars }) => {
       const abs = resolveWorkspacePath(ctx.workspaceDir, path)
+      const fence = await guardWorkspacePath(ctx.workspaceDir, abs)
+      if (!fence.ok) return JSON.stringify({ ok: false, error: fence.error })
       ctx.emit('tool', { name: 'fs_read', path: abs })
       const text = await readFile(abs, 'utf8')
       const clipped = text.slice(0, maxChars ?? 50_000)
@@ -137,6 +151,8 @@ export function registerBuiltinTools(): void {
     schema: z.object({ path: z.string(), content: z.string() }),
     run: async ({ path, content }) => {
       const abs = resolveWorkspacePath(ctx.workspaceDir, path)
+      const fence = await guardWorkspacePath(ctx.workspaceDir, abs)
+      if (!fence.ok) return JSON.stringify({ ok: false, error: fence.error })
       if (isHighRiskOverwrite(abs)) {
         const ok = await ctx.confirmHighRisk('覆盖写敏感/可执行文件', abs)
         if (!ok) return JSON.stringify({ ok: false, error: '用户拒绝' })
@@ -163,6 +179,8 @@ export function registerBuiltinTools(): void {
     schema: z.object({ path: z.string(), recursive: z.boolean().optional() }),
     run: async ({ path, recursive }) => {
       const abs = resolveWorkspacePath(ctx.workspaceDir, path)
+      const fence = await guardWorkspacePath(ctx.workspaceDir, abs)
+      if (!fence.ok) return JSON.stringify({ ok: false, error: fence.error })
       {
         const ok = await ctx.confirmHighRisk('删除文件/目录', abs)
         if (!ok) return JSON.stringify({ ok: false, error: '用户拒绝' })
