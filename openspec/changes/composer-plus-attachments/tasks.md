@@ -6,10 +6,10 @@
 
 ## 2. 读图与上下文组装（main）
 
-- [ ] 2.1 实现 vision 模型启发式选型（当前 provider 列表 / 白名单 / id 含 vision）
-- [ ] 2.2 实现图片读图 completion（多模态 → 纯文本 notes）；失败可降级
-- [ ] 2.3 在 `agentChat` / `runAgent` 前组装：技能摘要 + 非图路径元数据 + imageNotes + 用户正文
-- [ ] 2.4 单测：选型、降级、上下文拼装关键路径
+- [x] 2.1 实现 vision 模型启发式选型（当前 provider 列表 / 白名单 / id 含 vision）
+- [x] 2.2 实现图片读图 completion（多模态 → 纯文本 notes）；失败可降级
+- [x] 2.3 在 `agentChat` / `runAgent` 前组装：技能摘要 + 非图路径元数据 + imageNotes + 用户正文
+- [x] 2.4 单测：选型、降级、上下文拼装关键路径
 
 ## 3. Composer UI
 

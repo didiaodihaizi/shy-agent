@@ -2,6 +2,7 @@ import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import {
   IPC,
+  type AgentEvent,
   type AgentMode,
   type ChatRequest,
   type MaterialCanvasState,
@@ -17,6 +18,7 @@ import { listOpenCodeGoModelsFromSettings } from './llm/opencode-go-models'
 import { parseMcpConfig, readMcpConfig, writeMcpConfig } from './mcp/config'
 import { getMcpManager } from './mcp/manager'
 import { runAgent, cancelAgent, pauseAgent, resumeAgent } from './agent/service'
+import { prepareAttachmentMessage } from './agent/attachments/prepare'
 import { createConfirmWaiter, registerConfirmIpc } from './confirm'
 import { registerAskUserIpc, rejectPendingAsks } from './ask-user'
 import { startScheduler } from './schedule/scheduler-loop'
@@ -558,24 +560,41 @@ export function registerCoreIpc(): void {
       updateSessionRuntime(req.sessionId, { mode: req.mode as AgentMode })
     }
 
-    void runAgent({
-      sessionId: req.sessionId,
-      message: req.message,
-      mode: req.mode as AgentMode,
-      verifyCommand: req.verifyCommand,
-      ...(req.activeView ? { activeView: req.activeView } : {}),
-      emit: (event) => {
-        emitToRenderer({ sessionId: req.sessionId, ...event })
-        if (event.type === 'memory') {
-          emitToRenderer({
-            sessionId: req.sessionId,
-            type: 'notify',
-            message: `长期记忆已${event.action === 'delete' ? '删除' : '更新'}：${event.title || event.entryId || ''}`
-          })
-        }
-      },
-      waitConfirm
-    })
+    const emit = (event: AgentEvent): void => {
+      emitToRenderer({ sessionId: req.sessionId, ...event })
+      if (event.type === 'memory') {
+        emitToRenderer({
+          sessionId: req.sessionId,
+          type: 'notify',
+          message: `长期记忆已${event.action === 'delete' ? '删除' : '更新'}：${event.title || event.entryId || ''}`
+        })
+      }
+    }
+
+    void (async () => {
+      let message = req.message
+      if ((req.skills?.length ?? 0) > 0 || (req.attachments?.length ?? 0) > 0) {
+        const prepared = await prepareAttachmentMessage({
+          sessionId: req.sessionId,
+          message: req.message,
+          skills: req.skills,
+          attachments: req.attachments,
+          emitStatus: (msg) => emit({ type: 'status', message: msg }),
+          emitNotify: (msg) => emit({ type: 'notify', message: msg })
+        })
+        message = prepared.message
+      }
+
+      await runAgent({
+        sessionId: req.sessionId,
+        message,
+        mode: req.mode as AgentMode,
+        verifyCommand: req.verifyCommand,
+        ...(req.activeView ? { activeView: req.activeView } : {}),
+        emit,
+        waitConfirm
+      })
+    })()
     return { ok: true, started: true }
   })
 
