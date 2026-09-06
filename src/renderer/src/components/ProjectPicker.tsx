@@ -50,6 +50,11 @@ export function ProjectPicker({
 
   return (
     <div className="project-picker">
+      <span className="project-picker-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9z" />
+        </svg>
+      </span>
       <select
         className="project-picker-select"
         aria-label="工作空间"

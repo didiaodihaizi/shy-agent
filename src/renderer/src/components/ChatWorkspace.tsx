@@ -623,80 +623,135 @@ export function ChatWorkspace({
 
     return (
       <div className={`composer-shell composer-shell-${variant}`}>
-        <div className="composer-inputline">
-          <EditorContent editor={editor} />
-        </div>
-        {mentionOpen ? (
-          <SlashMenu
-            open
-            items={mentionItems}
-            activeIndex={activeMentionIndex}
-            onSelect={selectMention}
-            onHover={setMentionIndex}
-          />
-        ) : null}
-        {slashQuery !== null ? (
-          <SlashMenu
-            open
-            items={slashItems}
-            activeIndex={activeSlashIndex}
-            onSelect={selectSlash}
-            onHover={setSlashIndex}
-          />
-        ) : null}
-        <div className="composer-bar">
-          <div className="composer-options">
-            <button type="button" className="composer-plus" aria-label="添加" title="添加" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-            {variant === 'chat' ? (
+        {variant === 'empty' ? (
+          <>
+            <div className="composer-card">
+              <div className="composer-inputline">
+                <EditorContent editor={editor} />
+              </div>
+              {mentionOpen ? (
+                <SlashMenu
+                  open
+                  items={mentionItems}
+                  activeIndex={activeMentionIndex}
+                  onSelect={selectMention}
+                  onHover={setMentionIndex}
+                />
+              ) : null}
+              {slashQuery !== null ? (
+                <SlashMenu
+                  open
+                  items={slashItems}
+                  activeIndex={activeSlashIndex}
+                  onSelect={selectSlash}
+                  onHover={setSlashIndex}
+                />
+              ) : null}
+              <div className="composer-bar">
+                <div className="composer-options">
+                  <button type="button" className="composer-plus" aria-label="添加" title="添加" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="composer-actions">
+                  {modelControl}
+                  {!busy && !paused ? (
+                    <button
+                      type="button"
+                      className="composer-send"
+                      onClick={() => void onSend()}
+                      disabled={!canSend}
+                      aria-label="发送"
+                      title="发送（回车）"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 19V5M6 11l6-6 6 6" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <div className="composer-footer-meta">
+              {projectPicker}
               <PermissionPopover
                 alwaysAuthorize={alwaysAuthorize}
                 onToggle={onToggleAlwaysAuthorize}
               />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="composer-inputline">
+              <EditorContent editor={editor} />
+            </div>
+            {mentionOpen ? (
+              <SlashMenu
+                open
+                items={mentionItems}
+                activeIndex={activeMentionIndex}
+                onSelect={selectMention}
+                onHover={setMentionIndex}
+              />
             ) : null}
-          </div>
-          <div className="composer-actions">
-            {modelControl}
-            {busy && !paused ? (
-              <>
-                <button type="button" className="btn btn-ghost" onClick={() => void onPause()}>
-                  暂停
+            {slashQuery !== null ? (
+              <SlashMenu
+                open
+                items={slashItems}
+                activeIndex={activeSlashIndex}
+                onSelect={selectSlash}
+                onHover={setSlashIndex}
+              />
+            ) : null}
+            <div className="composer-bar">
+              <div className="composer-options">
+                <button type="button" className="composer-plus" aria-label="添加" title="添加" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
                 </button>
-                <button type="button" className="btn btn-danger" onClick={() => void onCancel()}>
-                  停止
-                </button>
-              </>
-            ) : null}
-            {paused ? (
-              <button type="button" className="btn btn-primary" onClick={() => void onResume()}>
-                继续
-              </button>
-            ) : null}
-            {!busy && !paused ? (
-              <button
-                type="button"
-                className="composer-send"
-                onClick={() => void onSend()}
-                disabled={!canSend}
-                aria-label="发送"
-                title="发送（回车）"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 19V5M6 11l6-6 6 6" />
-                </svg>
-              </button>
-            ) : null}
-          </div>
-        </div>
-        {variant === 'empty' ? (
-          <div className="composer-footer-meta">
-            {projectPicker}
-            <PermissionPopover alwaysAuthorize={alwaysAuthorize} onToggle={onToggleAlwaysAuthorize} />
-          </div>
-        ) : null}
+                <PermissionPopover
+                  alwaysAuthorize={alwaysAuthorize}
+                  onToggle={onToggleAlwaysAuthorize}
+                />
+              </div>
+              <div className="composer-actions">
+                {modelControl}
+                {busy && !paused ? (
+                  <>
+                    <button type="button" className="btn btn-ghost" onClick={() => void onPause()}>
+                      暂停
+                    </button>
+                    <button type="button" className="btn btn-danger" onClick={() => void onCancel()}>
+                      停止
+                    </button>
+                  </>
+                ) : null}
+                {paused ? (
+                  <button type="button" className="btn btn-primary" onClick={() => void onResume()}>
+                    继续
+                  </button>
+                ) : null}
+                {!busy && !paused ? (
+                  <button
+                    type="button"
+                    className="composer-send"
+                    onClick={() => void onSend()}
+                    disabled={!canSend}
+                    aria-label="发送"
+                    title="发送（回车）"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 19V5M6 11l6-6 6 6" />
+                    </svg>
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     )
   }
