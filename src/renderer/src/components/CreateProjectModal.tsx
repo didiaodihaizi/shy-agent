@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ProjectType } from '../../../shared/ipc'
 import { Modal } from './ui'
 
@@ -7,18 +7,29 @@ type Props = {
   onClose: () => void
   onCreated: (projectId: string) => void
   onProjectsChanged?: () => void
+  /** 预填工作目录（打开本地文件夹后再补类型时用） */
+  initialPath?: string
 }
 
 export function CreateProjectModal({
   open,
   onClose,
   onCreated,
-  onProjectsChanged
+  onProjectsChanged,
+  initialPath
 }: Props): React.JSX.Element | null {
   const [type, setType] = useState<ProjectType>('code')
   const [rootPath, setRootPath] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    setType('code')
+    setRootPath(initialPath ?? '')
+    setError('')
+    setBusy(false)
+  }, [open, initialPath])
 
   if (!open) return null
 
