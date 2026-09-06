@@ -67,15 +67,16 @@ export function ToolRowShell({
         className="tool-row"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        title={open ? '收起' : '展开'}
+        title={open ? '收起详情' : '展开详情'}
       >
         <ToolGlyph name={toolName} />
-        <span className="tool-label">{action}</span>
-        {param ? <span className="tool-param">{param}</span> : null}
-        <span className={`tool-row-chevron${open ? ' open' : ''}`} aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+        <span className="tool-row-main">
+          <span className="tool-label">{action}</span>
+          {param ? (
+            <span className="tool-param" title={param}>
+              {param}
+            </span>
+          ) : null}
         </span>
         {!hideStatus ? (
           <span className={`tool-status ${failed ? 'failed' : running ? 'running' : 'done'}`}>

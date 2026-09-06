@@ -5450,6 +5450,31 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+.tool-row-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.tool-label {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.tool-param {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
 .tool-glyph {
   width: 14px;
   height: 14px;
@@ -5480,21 +5505,6 @@
   width: 8px;
   height: 8px;
   margin: 3px;
-}
-.tool-param {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-.tool-label {
-  flex-shrink: 0;
-  color: var(--text-secondary);
-  font-weight: 500;
 }
 .tool-merge-slot {
   margin: 4px 0 8px 22px;
@@ -5560,24 +5570,6 @@
 .md-streaming {
   /* 流式中略减动画噪声；结构与完成态一致 */
 }
-.tool-row-chevron {
-  display: inline-flex;
-  flex-shrink: 0;
-  color: var(--text-muted);
-  transition: transform 160ms var(--ease);
-}
-.tool-row-chevron svg {
-  width: 12px;
-  height: 12px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.tool-row-chevron.open {
-  transform: rotate(90deg);
-}
 .tool-card-live {
   margin-top: 0;
 }
@@ -5594,15 +5586,6 @@
   stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.tool-label {
-  flex: 1;
-  min-width: 0;
-  font-weight: 560;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .tool-status {
   margin-left: auto;
