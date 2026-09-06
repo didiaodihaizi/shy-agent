@@ -1,4 +1,5 @@
 import type { ChatAttachment, ImageNote } from './read-images'
+import { escapeShyAttr, escapeShyText } from './shy-context-escape'
 
 export type SkillSummaryForContext = {
   id: string
@@ -22,8 +23,8 @@ function truncate(text: string, max: number): string {
 }
 
 /**
- * 组装纯文本增强上下文：技能摘要 + 非图路径元数据 + imageNotes + 用户正文。
- * 不含原图二进制 / image_url。
+ * 组装 agent 通道增强上下文：`<shy-context>` 标签树 + 用户原文。
+ * 不含原图二进制 / image_url；无增强时仅返回用户原文。
  */
 export function buildAttachmentContext(input: BuildAttachmentContextInput): string {
   const skills = input.skillSummaries ?? []
@@ -31,37 +32,41 @@ export function buildAttachmentContext(input: BuildAttachmentContextInput): stri
   const notes = input.imageNotes ?? []
   const userText = input.userText ?? ''
 
-  const sections: string[] = []
-
-  if (skills.length > 0) {
-    const lines = skills.map((s) => {
-      const desc = s.description?.trim()
-        ? ` — ${truncate(s.description, DESC_MAX)}`
-        : ''
-      return `- ${s.name}（id: ${s.id}）${desc}`
-    })
-    sections.push(`【挂载技能】\n${lines.join('\n')}`)
-  }
-
-  if (notes.length > 0) {
-    const lines = notes.map(
-      (n) => `- ${n.name}（${n.path}）\n  读图结果：${n.note.trim()}`
-    )
-    sections.push(`【图片读图结果】\n${lines.join('\n')}`)
-  }
-
-  if (paths.length > 0) {
-    const lines = paths.map(
-      (a) => `- ${a.name} | path: ${a.path} | mime: ${a.mime} | kind: ${a.kind}`
-    )
-    sections.push(`【附件路径】\n${lines.join('\n')}`)
-  }
-
-  if (sections.length === 0) {
+  if (skills.length === 0 && paths.length === 0 && notes.length === 0) {
     return userText
   }
 
-  const prefix = sections.join('\n\n')
-  if (!userText.trim()) return prefix
-  return `${prefix}\n\n【用户消息】\n${userText}`
+  const lines: string[] = ['<shy-context>']
+
+  for (const n of notes) {
+    const path = escapeShyAttr(n.path)
+    const name = escapeShyAttr(n.name)
+    const body = escapeShyText(n.note.trim())
+    lines.push(`<shy-img path="${path}" name="${name}">${body}</shy-img>`)
+  }
+
+  for (const a of paths) {
+    const path = escapeShyAttr(a.path)
+    const name = escapeShyAttr(a.name)
+    const mime = escapeShyAttr(a.mime)
+    lines.push(`<shy-file path="${path}" name="${name}" mime="${mime}"/>`)
+  }
+
+  for (const s of skills) {
+    const id = escapeShyAttr(s.id)
+    const name = escapeShyAttr(s.name)
+    const desc = s.description?.trim()
+    if (desc) {
+      lines.push(
+        `<shy-skill id="${id}" name="${name}">${escapeShyText(truncate(desc, DESC_MAX))}</shy-skill>`
+      )
+    } else {
+      lines.push(`<shy-skill id="${id}" name="${name}"/>`)
+    }
+  }
+
+  lines.push('</shy-context>')
+  const block = lines.join('\n')
+  if (!userText.trim()) return block
+  return `${block}\n\n${userText}`
 }

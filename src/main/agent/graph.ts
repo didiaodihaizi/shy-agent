@@ -106,6 +106,8 @@ export function buildAgentGraph(opts: {
   contextWindow?: number
   /** 本轮发送瞬间的查看文件快照 */
   activeView?: ActiveView
+  /** 本轮多模态图片（path），invoke 时读盘为 data URL 挂到对应用户消息 */
+  imageParts?: Array<{ path: string; name: string; mime: string }>
 }): {
   invoke: (
     state: AgentGraphState,
@@ -142,6 +144,7 @@ function buildV2Graph(opts: {
   /** Stage 2.5: 模型 contextWindow,用于 compaction 触发线计算 */
   contextWindow?: number
   activeView?: ActiveView
+  imageParts?: Array<{ path: string; name: string; mime: string }>
 }): {
   invoke: (
     state: AgentGraphState,
@@ -163,7 +166,17 @@ function buildV2Graph(opts: {
     ): Promise<AgentGraphState> {
       const signal = invokeOpts?.signal ?? opts.signal
       // 把消息转 turn-runner 格式（纯对象：role / content / tool_calls / tool_call_id）
-      const history = (state.messages ?? [])
+      type TurnHistoryItem = {
+        role: 'user' | 'assistant' | 'tool'
+        content: string
+        contentParts?: Array<
+          | { type: 'text'; text: string }
+          | { type: 'image_url'; image_url: { url: string } }
+        >
+        toolCalls?: Array<{ id: string; name: string; args: string }>
+        toolCallId?: string
+      }
+      let history: TurnHistoryItem[] = (state.messages ?? [])
         .map((m) => {
           const msg = m as {
             role?: string
@@ -189,6 +202,26 @@ function buildV2Graph(opts: {
           return { role: 'user' as const, content: '' }
         })
         .filter((x): x is NonNullable<typeof x> => x !== null)
+
+      if (opts.imageParts && opts.imageParts.length > 0) {
+        const { loadMultimodalImageParts } = await import('./attachments/load-multimodal')
+        const loaded = await loadMultimodalImageParts(opts.imageParts)
+        for (const w of loaded.warnings) {
+          opts.emit({ type: 'notify', message: w })
+        }
+        if (loaded.parts.length > 0) {
+          for (let i = history.length - 1; i >= 0; i--) {
+            if (history[i]?.role === 'user') {
+              history = [
+                ...history.slice(0, i),
+                { ...history[i]!, contentParts: loaded.parts },
+                ...history.slice(i + 1)
+              ]
+              break
+            }
+          }
+        }
+      }
 
       // 调 turn-runner
       const goalState = state.goal

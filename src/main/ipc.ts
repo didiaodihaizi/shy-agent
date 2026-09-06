@@ -602,27 +602,31 @@ export function registerCoreIpc(): void {
     }
 
     void (async () => {
-      let message = req.message
-      if ((req.skills?.length ?? 0) > 0 || (req.attachments?.length ?? 0) > 0) {
-        const prepared = await prepareAttachmentMessage({
-          sessionId: req.sessionId,
-          message: req.message,
-          skills: req.skills,
-          attachments: req.attachments,
-          emitNotify: (msg) => emit({ type: 'notify', message: msg })
-        })
-        message = prepared.message
-      }
-
-      const displayMessage = encodeUserMessageContent(req.message, {
+      const userText = req.message
+      const displayMessage = encodeUserMessageContent(userText, {
         skills: req.skills,
         attachments: req.attachments
       })
 
+      let agentMessage = userText
+      let imageParts: Array<{ path: string; name: string; mime: string }> = []
+      if ((req.skills?.length ?? 0) > 0 || (req.attachments?.length ?? 0) > 0) {
+        const prepared = await prepareAttachmentMessage({
+          sessionId: req.sessionId,
+          message: userText,
+          skills: req.skills,
+          attachments: req.attachments,
+          emitNotify: (msg) => emit({ type: 'notify', message: msg })
+        })
+        agentMessage = prepared.message
+        imageParts = prepared.imageParts
+      }
+
       await runAgent({
         sessionId: req.sessionId,
-        message,
+        message: agentMessage,
         displayMessage,
+        ...(imageParts.length ? { imageParts } : {}),
         mode: req.mode as AgentMode,
         verifyCommand: req.verifyCommand,
         ...(req.activeView ? { activeView: req.activeView } : {}),

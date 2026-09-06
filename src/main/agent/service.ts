@@ -22,6 +22,8 @@ type RunArgs = {
   message: string
   /** 落库展示用正文；缺省则用 message（与 LLM 同文） */
   displayMessage?: string
+  /** 本轮多模态图片（会话模型支持 vision 时由 prepare 给出） */
+  imageParts?: Array<{ path: string; name: string; mime: string }>
   mode: AgentMode
   emit: (event: AgentEvent) => void
   waitConfirm: (action: string, detail: string) => Promise<boolean>
@@ -152,6 +154,7 @@ export async function runAgent(args: RunArgs): Promise<void> {
     })
 
     if (!resume) {
+      // 落库只存用户原文（+ 展示用 meta）；绝不用 agent 加工上下文
       appendMessage(sessionId, 'user', args.displayMessage ?? message)
     }
 
@@ -241,6 +244,9 @@ export async function runAgent(args: RunArgs): Promise<void> {
       }
       if (event.type === 'error' && event.message) {
         emit({ type: 'error', message: event.message })
+      }
+      if (event.type === 'notify' && event.message) {
+        emit({ type: 'notify', message: event.message })
       }
       if (event.type === 'tool') {
         emit({ type: 'tool', name: event.name ?? 'tool', detail: event.detail })
@@ -343,16 +349,32 @@ export async function runAgent(args: RunArgs): Promise<void> {
           tokenBudget: settings.tokenBudget ?? 0,
           segmentSteps: settings.segmentSteps ?? 60
         },
-        ...(args.activeView ? { activeView: args.activeView } : {})
+        ...(args.activeView ? { activeView: args.activeView } : {}),
+        ...(args.imageParts?.length ? { imageParts: args.imageParts } : {})
       })
 
       updateSessionRuntime(sessionId, { mode, paused: false })
 
       const fresh = getSession(sessionId)
-      const history = (fresh?.messages ?? [])
+      const stored = (fresh?.messages ?? [])
         .filter((m) => m.role === 'user' || m.role === 'assistant')
         .slice(-20)
         .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+
+      // 库里是用户原文(+meta)；本轮 LLM 用加工后的 message（读图/技能），不写回库
+      let history = stored
+      if (args.displayMessage && args.displayMessage !== message) {
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i]?.role === 'user' && history[i]?.content === args.displayMessage) {
+            history = [
+              ...history.slice(0, i),
+              { role: 'user' as const, content: message },
+              ...history.slice(i + 1)
+            ]
+            break
+          }
+        }
+      }
 
       const finalMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> =
         resume || totalRound > 0

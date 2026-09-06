@@ -221,9 +221,35 @@ export async function runTurn(input: TurnInput, deps: RunTurnDeps): Promise<Turn
   let history: Array<{
     role: 'user' | 'assistant' | 'tool'
     content: string
+    contentParts?: ReadonlyArray<
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string } }
+    >
     toolCalls?: { id: string; name: string; args: string }[]
     toolCallId?: string
   }>
+  const contentPartsByUserText = new Map<
+    string,
+    NonNullable<(typeof input.history)[number]['contentParts']>
+  >()
+  for (const m of input.history) {
+    if (m.role === 'user' && m.contentParts && m.contentParts.length > 0) {
+      contentPartsByUserText.set(m.content, m.contentParts)
+    }
+  }
+  const withContentParts = <
+    T extends {
+      role: 'user' | 'assistant' | 'tool'
+      content: string
+      toolCalls?: { id: string; name: string; args: string }[]
+      toolCallId?: string
+    }
+  >(
+    m: T
+  ): T & { contentParts?: (typeof input.history)[number]['contentParts'] } => {
+    const parts = m.role === 'user' ? contentPartsByUserText.get(m.content) : undefined
+    return parts ? { ...m, contentParts: parts } : m
+  }
   if (input.compaction?.enabled !== false) {
     const compactionSettings: Partial<CompactionSettings> = {}
     void compactionSettings // 默认用 DEFAULT_COMPACTION_SETTINGS
@@ -270,19 +296,23 @@ export async function runTurn(input: TurnInput, deps: RunTurnDeps): Promise<Turn
       skipped: compactionPlan.skipped
     })
     void compactionStartMs
-    history = compactionPlan.history.map((m) => ({
-      role: m.role,
-      content: m.content,
-      toolCalls: m.toolCalls ? [...m.toolCalls] : undefined,
-      toolCallId: m.toolCallId
-    }))
+    history = compactionPlan.history.map((m) =>
+      withContentParts({
+        role: m.role,
+        content: m.content,
+        toolCalls: m.toolCalls ? [...m.toolCalls] : undefined,
+        toolCallId: m.toolCallId
+      })
+    )
   } else {
-    history = input.history.map((m) => ({
-      role: m.role,
-      content: m.content,
-      toolCalls: m.toolCalls ? [...m.toolCalls] : undefined,
-      toolCallId: m.toolCallId
-    }))
+    history = input.history.map((m) =>
+      withContentParts({
+        role: m.role,
+        content: m.content,
+        toolCalls: m.toolCalls ? [...m.toolCalls] : undefined,
+        toolCallId: m.toolCallId
+      })
+    )
   }
 
   let loopGuard = 0
@@ -367,7 +397,18 @@ export async function runTurn(input: TurnInput, deps: RunTurnDeps): Promise<Turn
       const llmMessages: LLMMessage[] = [
         { role: 'system', content: systemPrompt },
         ...history.map((m) => {
-          if (m.role === 'user') return { role: 'user' as const, content: m.content }
+          if (m.role === 'user') {
+            if (m.contentParts && m.contentParts.length > 0) {
+              return {
+                role: 'user' as const,
+                content: [
+                  { type: 'text' as const, text: m.content },
+                  ...m.contentParts
+                ]
+              }
+            }
+            return { role: 'user' as const, content: m.content }
+          }
           if (m.role === 'tool') {
             return {
               role: 'tool' as const,

@@ -61,6 +61,11 @@ export type TurnInput = {
   history: ReadonlyArray<{
     role: 'user' | 'assistant' | 'tool'
     content: string
+    /** 若存在，callLLM 时用 text+parts 多模态替代纯字符串 content */
+    contentParts?: ReadonlyArray<
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string } }
+    >
     toolCalls?: ReadonlyArray<{ id: string; name: string; args: string }>
     toolCallId?: string
   }>

@@ -194,6 +194,67 @@ describe('runAgent mode routing', () => {
     )
   })
 
+  it('displayMessage 与 agent message 不同时：落库原文，invoke 用加工文', async () => {
+    const display = '看图\n\n<!--shy-msg-meta:{"attachments":[{"path":"/tmp/a.png","name":"a.png","mime":"image/png","kind":"image"}]}-->'
+    const agentMsg =
+      '<shy-context>\n<shy-img path="/tmp/a.png" name="a.png">猫</shy-img>\n</shy-context>\n\n看图'
+
+    getSession.mockImplementation(() => ({
+      id: 'sess-interactive',
+      title: 't',
+      mode: 'interactive',
+      messages: [
+        {
+          id: 'm1',
+          role: 'user',
+          content: display,
+          createdAt: new Date().toISOString()
+        }
+      ],
+      checklist: [],
+      goal: '',
+      shortMemory: '',
+      paused: false,
+      runStatus: 'idle'
+    }))
+
+    const invoke = vi.fn(async () => ({
+      round: 0,
+      checklist: [],
+      goal: '',
+      tokenUsed: 0,
+      stagnantRounds: 0
+    }))
+    buildAgentGraph.mockReturnValue({ invoke })
+
+    const { runAgent } = await import('./service')
+    await runAgent({
+      sessionId: 'sess-interactive',
+      message: agentMsg,
+      displayMessage: display,
+      mode: 'interactive',
+      emit: () => undefined,
+      waitConfirm: async () => true
+    })
+
+    expect(appendMessage).toHaveBeenCalledWith('sess-interactive', 'user', display)
+    expect(appendMessage).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'user',
+      expect.stringContaining('<shy-context>')
+    )
+    expect(invoke).toHaveBeenCalled()
+    const firstCall = (invoke as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]
+    const invokeArg = firstCall?.[0] as
+      | { messages: Array<{ role: string; content: string }> }
+      | undefined
+    expect(invokeArg).toBeDefined()
+    const userTurns = invokeArg!.messages.filter((m) => m.role === 'user')
+    expect(userTurns.some((m) => m.content.includes('<shy-context>'))).toBe(true)
+    expect(userTurns.some((m) => m.content.includes('<shy-img'))).toBe(true)
+    expect(userTurns.every((m) => !m.content.includes('shy-msg-meta'))).toBe(true)
+  })
+
   it('goal 带 activeView 时传给 runGoalDriver 且 appendMessage 仍为原文', async () => {
     getSession.mockReturnValue({
       id: 'sess-goal',

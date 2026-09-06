@@ -20,10 +20,14 @@ import type {
   ChatCompletionTool
 } from 'openai/resources/index'
 
+export type LLMTextPart = { type: 'text'; text: string }
+export type LLMImageUrlPart = { type: 'image_url'; image_url: { url: string } }
+export type LLMContentPart = LLMTextPart | LLMImageUrlPart
+
 export type LLMMessage =
   | {
       role: 'system' | 'user' | 'assistant'
-      content: string
+      content: string | LLMContentPart[]
       tool_calls?: ChatCompletionMessageToolCall[]
       tool_call_id?: string
     }
@@ -60,7 +64,7 @@ export async function* streamChatCompletion(
   const stream = await openai.chat.completions.create(
     {
       model: config.model,
-      messages,
+      messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
       tools: tools.length > 0 ? tools : undefined,
       tool_choice: tools.length > 0 ? 'auto' : undefined,
       temperature: 0.2,
@@ -178,7 +182,7 @@ export async function invokeChatCompletion(
   const res = await openai.chat.completions.create(
     {
       model: config.model,
-      messages,
+      messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
       temperature: options?.temperature ?? 0.2,
       max_tokens: options?.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       ...(options?.tools?.length ? { tools: options.tools, tool_choice: 'auto' as const } : {})

@@ -1,69 +1,71 @@
 import { normalizeProvider, resolveLlmConfig } from '../llm-config'
-import { listOpenCodeGoModelsFromSettings } from '../../llm/opencode-go-models'
 import { getSettings } from '../../settings/store'
 import { getSession } from '../../sessions/store'
 import { listSkills } from '../../skills/store'
-import { pickVisionModel } from './vision-model'
-import { readImages, type ChatAttachment } from './read-images'
+import { isVisionCapable } from './vision-model'
+import type { ChatAttachment } from './read-images'
 import { buildAttachmentContext } from './build-context'
+
+export type PrepareImagePart = {
+  path: string
+  name: string
+  mime: string
+}
 
 export type PrepareAttachmentMessageInput = {
   sessionId: string
   message: string
   skills?: { id: string; name: string }[]
   attachments?: ChatAttachment[]
-  /** 状态/轻提示回调（如「正在理解图片…」） */
   emitStatus?: (message: string) => void
   emitNotify?: (message: string) => void
 }
 
+export type PrepareAttachmentMessageResult = {
+  message: string
+  /** 会话模型支持 vision 时，本轮透传的图片（不含二进制） */
+  imageParts: PrepareImagePart[]
+  warnings: string[]
+}
+
 /**
- * 发送前：vision 选型 → 读图 → 组装纯文本增强 message。
- * 用户所选模型不会收到原图 / image_url。
+ * 发送前组装 agent 文本上下文 + 可选多模态 imageParts。
+ * 不再预读 OCR；vision 能力看会话所选模型。
  */
 export async function prepareAttachmentMessage(
   input: PrepareAttachmentMessageInput
-): Promise<{ message: string; warnings: string[] }> {
+): Promise<PrepareAttachmentMessageResult> {
   const skills = input.skills ?? []
   const attachments = input.attachments ?? []
   if (skills.length === 0 && attachments.length === 0) {
-    return { message: input.message, warnings: [] }
+    return { message: input.message, imageParts: [], warnings: [] }
   }
 
   const settings = await getSettings()
   const session = getSession(input.sessionId)
   const llm = resolveLlmConfig(settings, session ?? undefined)
+  void normalizeProvider(settings.provider)
 
-  const provider = normalizeProvider(settings.provider)
-  let modelIds: string[] = []
-  if (provider === 'opencode-go') {
-    try {
-      const listed = await listOpenCodeGoModelsFromSettings(settings)
-      modelIds = listed.models
-    } catch {
-      modelIds = [llm.model].filter(Boolean)
+  const sessionModelCapable = isVisionCapable(llm.model)
+  const images = attachments.filter((a) => a.kind === 'image')
+  const files = attachments.filter((a) => a.kind !== 'image')
+  const warnings: string[] = []
+
+  let imageParts: PrepareImagePart[] = []
+  let pathAttachments: ChatAttachment[] = [...files]
+
+  if (images.length > 0) {
+    if (sessionModelCapable) {
+      imageParts = images.map((a) => ({
+        path: a.path,
+        name: a.name,
+        mime: a.mime || 'application/octet-stream'
+      }))
+    } else {
+      pathAttachments = [...files, ...images]
+      warnings.push('当前会话模型不支持视觉，图片已按路径附件发送')
+      input.emitNotify?.(warnings[warnings.length - 1]!)
     }
-  } else {
-    modelIds = [session?.model, settings.model].filter(
-      (m): m is string => typeof m === 'string' && m.trim().length > 0
-    )
-  }
-
-  const hasImages = attachments.some((a) => a.kind === 'image')
-  const visionModel = hasImages ? pickVisionModel(modelIds) : null
-
-  if (hasImages) {
-    input.emitStatus?.('正在理解图片…')
-  }
-
-  const readResult = await readImages({
-    attachments,
-    visionModel,
-    llm: { baseURL: llm.baseURL, apiKey: llm.apiKey }
-  })
-
-  for (const w of readResult.warnings) {
-    input.emitNotify?.(w)
   }
 
   const allSkills = skills.length > 0 ? await listSkills() : []
@@ -84,9 +86,9 @@ export async function prepareAttachmentMessage(
   const message = buildAttachmentContext({
     userText: input.message,
     skillSummaries,
-    pathAttachments: readResult.pathAttachments,
-    imageNotes: readResult.imageNotes
+    pathAttachments,
+    imageNotes: []
   })
 
-  return { message, warnings: readResult.warnings }
+  return { message, imageParts, warnings }
 }
