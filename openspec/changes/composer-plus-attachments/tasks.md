@@ -22,4 +22,4 @@
 
 ## 4. 验收
 
-- [ ] 4.1 相关 vitest 通过；手动：多技能多文件、图 hover、有/无 vision、发送后清空 chip
+- [x] 4.1 相关 vitest 通过；手动：多技能多文件、图 hover、有/无 vision、发送后清空 chip
