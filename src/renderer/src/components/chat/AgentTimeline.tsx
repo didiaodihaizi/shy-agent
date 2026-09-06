@@ -1,5 +1,5 @@
 import { ReActContent } from './ReActContent'
-import { memo } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { ReasoningBlock } from './ReasoningBlock'
 import { getToolRenderer, registerToolRenderer } from './toolRenderers'
 import { SearchToolRenderer, WebFetchRenderer } from './toolRenderers/SearchFetch'
@@ -48,17 +48,66 @@ function ensureRenderers(): void {
   registerToolRenderer('task_stop', TaskToolRenderer)
 }
 
+function formatElapsed(ms: number): string {
+  const totalSec = Math.max(1, Math.round(ms / 1000))
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  if (m <= 0) return `${s}s`
+  return `${m}m${String(s).padStart(2, '0')}s`
+}
+
 type Props = {
   segments: TurnSegment[]
   streaming?: boolean
+  /** 本轮开始墙钟；用于完成耗时 */
+  startedAt?: number
+  /** 本轮结束墙钟（历史消息用 createdAt） */
+  endedAt?: number
 }
 
-export const AgentTimeline = memo(function AgentTimeline({ segments, streaming }: Props): React.JSX.Element {
+export const AgentTimeline = memo(function AgentTimeline({
+  segments,
+  streaming,
+  startedAt,
+  endedAt
+}: Props): React.JSX.Element {
   ensureRenderers()
   const skipThinking = hasReasoning(segments)
   const lastIdx = segments.length - 1
+  const [finishedAt, setFinishedAt] = useState<number | null>(null)
+  const wasStreaming = useRef(Boolean(streaming))
+
+  useEffect(() => {
+    if (streaming) {
+      wasStreaming.current = true
+      setFinishedAt(null)
+      return
+    }
+    if (wasStreaming.current && finishedAt == null && segments.length > 0) {
+      setFinishedAt(Date.now())
+    }
+  }, [streaming, segments.length, finishedAt])
+
+  const elapsedLabel = useMemo(() => {
+    if (streaming || !startedAt) return null
+    const end = finishedAt ?? endedAt
+    if (end == null || end < startedAt) return null
+    return formatElapsed(end - startedAt)
+  }, [streaming, startedAt, endedAt, finishedAt])
+
+  const allToolsSettled = segments.every(
+    (s) => s.kind !== 'tool' || s.status === 'done' || s.status === 'failed'
+  )
+  const showFooter = !streaming && allToolsSettled && segments.length > 0
+
   return (
     <div className="tool-timeline agent-timeline">
+      {showFooter && elapsedLabel ? (
+        <div className="timeline-footer-status">
+          已完成<span className="timeline-footer-sep">·</span>
+          {elapsedLabel}
+        </div>
+      ) : null}
       {segments.map((seg, i) => {
         const isLast = i === lastIdx
         if (seg.kind === 'reasoning') {

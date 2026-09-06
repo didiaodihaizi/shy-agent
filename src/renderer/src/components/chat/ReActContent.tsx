@@ -1,9 +1,8 @@
 /**
- * ReActContent — 把 assistant content 以「普通展示」渲染（对齐 MiniMax）。
+ * ReActContent — 把 assistant content 以「普通展示」渲染（对齐 MiniMax / WorkBuddy）。
  *
- * 设计（对齐参考图）：
- * - 推理（<think>...</think> / <thinking>...</thinking>）收进一个可折叠的「思考 N 次」
- * - 其余正文用**纯 Markdown** 渲染，无背景卡片 —— 只有用户消息才有背景色
+ * - 推理收进可折叠「深度思考」
+ * - 正文始终 Markdown；流式传 complete=false 做 fence 容错
  */
 import { useMemo } from 'react'
 import { MarkdownBody } from '../MarkdownBody'
@@ -12,7 +11,6 @@ import { stripXmlToolMarkup } from '../../../../shared/xml-tool-calls'
 
 type Props = { content: string; skipThinking?: boolean; streaming?: boolean }
 
-/** 提取推理块并去掉 think 标签，剩余作为正文（含未闭合 think，避免截断看起来像丢了后半段） */
 function splitReasoning(content: string): { reasoning: string; reply: string } {
   const { thinking, body } = splitAssistantContent(content)
   return { reasoning: thinking, reply: stripXmlToolMarkup(body) }
@@ -39,19 +37,19 @@ export function ReActContent({ content, skipThinking = false, streaming = false 
   return (
     <div className="react-plain">
       {showThinking ? (
-        <details className="react-thinking">
+        <details className="react-thinking" open={streaming}>
           <summary className="react-thinking-head">
             <span className="think-chevron" aria-hidden="true">
               <svg viewBox="0 0 24 24">
                 <path d="M9 6l6 6-6 6" />
               </svg>
             </span>
-            思考 {thinkCount || 1} 次
+            深度思考{thinkCount > 1 ? ` · ${thinkCount}` : streaming ? '…' : ''}
           </summary>
           <div className="react-thinking-body react-thinking-pre">{reasoning}</div>
         </details>
       ) : null}
-      {streaming ? <div className="react-streaming-text">{reply}</div> : <MarkdownBody content={reply} />}
+      {reply.trim() ? <MarkdownBody content={reply} complete={!streaming} /> : null}
     </div>
   )
 }

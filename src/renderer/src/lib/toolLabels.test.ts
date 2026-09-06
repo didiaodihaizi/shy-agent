@@ -8,7 +8,7 @@ describe('getToolLabel', () => {
   })
 
   it('web_search → 搜索网页 + query', () => {
-    expect(getToolLabel('web_search', { query: '广州周末' })).toMatch(/搜索网页.*广州周末/)
+    expect(getToolLabel('web_search', { query: '广州周末' })).toMatch(/网页搜索.*广州周末/)
   })
 
   it('grep / glob / fs_edit 人话标签', () => {

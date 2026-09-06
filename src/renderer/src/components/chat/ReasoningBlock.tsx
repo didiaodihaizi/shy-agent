@@ -10,18 +10,18 @@ function formatDuration(ms?: number): string {
   return `${sec} 秒`
 }
 
-/** 思考区：默认展开，展示耗时。 */
+/** 深度思考穿插行（对齐 WorkBuddy） */
 export function ReasoningBlock({ content, durationMs, streaming }: Props): React.JSX.Element {
   const time = formatDuration(durationMs)
   return (
-    <details className="react-thinking reasoning-block" open>
+    <details className="react-thinking reasoning-block deep-think" open={Boolean(streaming)}>
       <summary className="react-thinking-head">
         <span className="think-chevron" aria-hidden="true">
           <svg viewBox="0 0 24 24">
-            <path d="M9 6l6 6-6 6" />
+            <path d="M6 9l6 6 6-6" />
           </svg>
         </span>
-        思考{time ? ` · ${time}` : streaming ? '中…' : ''}
+        深度思考{time ? ` · ${time}` : streaming ? '…' : ''}
       </summary>
       <div className="react-thinking-body react-thinking-pre">{content || '…'}</div>
     </details>

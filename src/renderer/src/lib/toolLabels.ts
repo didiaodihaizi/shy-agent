@@ -28,59 +28,95 @@ function hostOf(url: string): string {
   }
 }
 
-export function getToolLabel(name: string, input?: unknown): string {
+export type ToolLabelParts = { action: string; param?: string }
+
+/** 拆成动作名 + 次要参数（时间轴灰字） */
+export function getToolLabelParts(name: string, input?: unknown): ToolLabelParts {
   const args = asRecord(input)
   switch (name) {
-    case 'web_search':
-      return args?.query ? `搜索网页 · ${str(args.query)}` : '搜索网页'
+    case 'web_search': {
+      const q = str(args?.query)
+      return q ? { action: '网页搜索', param: q } : { action: '网页搜索' }
+    }
     case 'web_fetch':
     case 'browser_fetch': {
       const url = str(args?.url)
-      return url ? `抓取网页 · ${hostOf(url)}` : '抓取网页'
+      return url ? { action: '抓取网页', param: hostOf(url) } : { action: '抓取网页' }
     }
     case 'browser_open':
-      return '打开浏览器'
+      return { action: '打开浏览器' }
     case 'browser':
-      return args?.action ? `browser · ${str(args.action)}` : 'browser'
-    case 'grep':
-      return args?.pattern ? `搜索代码 · ${str(args.pattern)}` : '搜索代码'
-    case 'glob':
-      return args?.pattern ? `查找文件 · ${str(args.pattern)}` : '查找文件'
-    case 'fs_list':
-      return args?.path ? `列出目录 · ${str(args.path)}` : '列出目录'
-    case 'fs_read':
-      return args?.path ? `读取文件 · ${str(args.path)}` : '读取文件'
-    case 'fs_write':
-      return args?.path ? `写入文件 · ${str(args.path)}` : '写入文件'
-    case 'fs_edit':
-      return args?.path ? `编辑文件 · ${str(args.path)}` : '编辑文件'
-    case 'fs_delete':
-      return args?.path ? `删除文件 · ${str(args.path)}` : '删除文件'
-    case 'shell_exec':
-      return args?.command ? `执行命令 · ${str(args.command).slice(0, 48)}` : '执行命令'
-    case 'read_me':
-      return args?.module ? `读取指南 · ${str(args.module)}` : '读取指南'
-    case 'show_widget':
-      return args?.widgetType ? `可视化 · ${str(args.widgetType)}` : '可视化'
+      return args?.action
+        ? { action: 'browser', param: str(args.action) }
+        : { action: 'browser' }
+    case 'grep': {
+      const p = str(args?.pattern)
+      return p ? { action: '搜索代码', param: p } : { action: '搜索代码' }
+    }
+    case 'glob': {
+      const p = str(args?.pattern)
+      return p ? { action: '查找文件', param: p } : { action: '查找文件' }
+    }
+    case 'fs_list': {
+      const p = str(args?.path)
+      return p ? { action: '列出目录', param: p } : { action: '列出目录' }
+    }
+    case 'fs_read': {
+      const p = str(args?.path)
+      return p ? { action: '读取文件', param: p } : { action: '读取文件' }
+    }
+    case 'fs_write': {
+      const p = str(args?.path)
+      return p ? { action: '写入文件', param: p } : { action: '写入文件' }
+    }
+    case 'fs_edit': {
+      const p = str(args?.path)
+      return p ? { action: '编辑文件', param: p } : { action: '编辑文件' }
+    }
+    case 'fs_delete': {
+      const p = str(args?.path)
+      return p ? { action: '删除文件', param: p } : { action: '删除文件' }
+    }
+    case 'shell_exec': {
+      const c = str(args?.command).slice(0, 48)
+      return c ? { action: '执行命令', param: c } : { action: '执行命令' }
+    }
+    case 'read_me': {
+      const m = str(args?.module)
+      return m ? { action: '读取指南', param: m } : { action: '读取指南' }
+    }
+    case 'show_widget': {
+      const t = str(args?.widgetType)
+      return t ? { action: '可视化', param: t } : { action: '可视化' }
+    }
     case 'present_artifact': {
       const paths = args?.paths
       const n = Array.isArray(paths) ? paths.length : args?.url ? 1 : 0
-      return n ? `呈现产物 · ${n} 项` : '呈现产物'
+      return n ? { action: '呈现产物', param: `${n} 项` } : { action: '呈现产物' }
     }
-    case 'ask_user':
-      return args?.question ? `询问用户 · ${str(args.question).slice(0, 32)}` : '询问用户'
+    case 'ask_user': {
+      const q = str(args?.question).slice(0, 32)
+      return q ? { action: '询问用户', param: q } : { action: '询问用户' }
+    }
     case 'read_lints':
-      return '读取诊断'
+      return { action: '读取诊断' }
     case 'task':
     case 'task_query':
     case 'task_output':
     case 'task_stop':
-      return '任务'
+      return { action: '任务' }
     case 'dispatch_subagent':
-      return args?.type ? `dispatch_subagent · ${str(args.type)}` : 'dispatch_subagent'
+      return args?.type
+        ? { action: 'dispatch_subagent', param: str(args.type) }
+        : { action: 'dispatch_subagent' }
     case 'image_gen':
-      return '生成图像'
+      return { action: '生成图像' }
     default:
-      return name
+      return { action: name }
   }
+}
+
+export function getToolLabel(name: string, input?: unknown): string {
+  const { action, param } = getToolLabelParts(name, input)
+  return param ? `${action} · ${param}` : action
 }

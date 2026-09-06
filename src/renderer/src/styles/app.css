@@ -5450,6 +5450,116 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+.tool-glyph {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--text-muted);
+  opacity: 0.55;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+.tool-glyph-search {
+  background: var(--text-secondary);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3-3'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3-3'/%3E%3C/svg%3E");
+}
+.tool-glyph-file {
+  background: var(--text-secondary);
+  border-radius: 2px;
+  opacity: 0.45;
+}
+.tool-glyph-shell,
+.tool-glyph-default {
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  margin: 3px;
+}
+.tool-param {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.tool-label {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.tool-merge-slot {
+  margin: 4px 0 8px 22px;
+}
+.search-merge-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-hover) 88%, var(--border));
+  border: 1px solid var(--border);
+}
+.search-merge-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.search-merge-item:hover {
+  background: var(--bg-panel);
+}
+.search-merge-fav {
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.search-merge-swatch {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.search-merge-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timeline-footer-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 10px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.timeline-footer-sep {
+  opacity: 0.7;
+}
+.deep-think.react-thinking {
+  border-top: 0;
+  padding: 4px 8px 6px;
+}
+.deep-think .react-thinking-head {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.md-streaming {
+  /* 流式中略减动画噪声；结构与完成态一致 */
+}
 .tool-row-chevron {
   display: inline-flex;
   flex-shrink: 0;

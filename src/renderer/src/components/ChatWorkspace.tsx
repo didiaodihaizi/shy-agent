@@ -244,6 +244,7 @@ export function ChatWorkspace({
   const stickToBottomRef = useRef(true)
   const currentSessionIdRef = useRef(sessionId)
   const historyCursorRef = useRef<{ beforeCreatedAt: string; beforeId: string } | null>(null)
+  const turnStartedAtRef = useRef<number | null>(null)
   const streamingTurnRef = useRef<Msg[]>([])
   const pendingDeltaRef = useRef<{ role: 'assistant' | 'reasoning'; content: string } | null>(null)
   const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -663,6 +664,26 @@ export function ChatWorkspace({
       if (oldest) segmentsCacheRef.current.delete(oldest)
     }
     return next
+  }
+  const turnStartedAtFor = (items: Msg[], isStreaming: boolean): number | undefined => {
+    if (isStreaming && turnStartedAtRef.current) return turnStartedAtRef.current
+    const t = items[0]?.createdAt
+    if (typeof t === 'string') {
+      const ms = Date.parse(t)
+      return Number.isFinite(ms) ? ms : undefined
+    }
+    return undefined
+  }
+  const turnEndedAtFor = (items: Msg[], isStreaming: boolean): number | undefined => {
+    if (isStreaming) return undefined
+    for (let i = items.length - 1; i >= 0; i--) {
+      const t = items[i]?.createdAt
+      if (typeof t === 'string') {
+        const ms = Date.parse(t)
+        if (Number.isFinite(ms)) return ms
+      }
+    }
+    return undefined
   }
   useEffect(() => {
     const el = threadRef.current
@@ -1305,6 +1326,7 @@ export function ChatWorkspace({
     editor.commands.focus()
     stickToBottomRef.current = true
     setBusy(true)
+    turnStartedAtRef.current = Date.now()
     setPaused(false)
     setStatus('')
     setMessages((prev) => [
@@ -1351,6 +1373,7 @@ export function ChatWorkspace({
 
   const onResume = async (): Promise<void> => {
     setBusy(true)
+    turnStartedAtRef.current = Date.now()
     setPaused(false)
     setStatus('恢复中…')
     await window.shy.resume(sessionId)
@@ -1486,6 +1509,8 @@ export function ChatWorkspace({
                               <AgentTimeline
                                 segments={segmentsFor(block.items)}
                                 streaming={streaming}
+                                startedAt={turnStartedAtFor(block.items, streaming)}
+                                endedAt={turnEndedAtFor(block.items, streaming)}
                               />
                               {streaming ? (
                                 <span className="stream-cursor" aria-hidden="true" />
