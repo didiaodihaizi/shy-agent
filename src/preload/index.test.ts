@@ -165,6 +165,11 @@ describe('project preload API', () => {
     ])
   })
 
+  it('exposes multi-file picker', () => {
+    exposed.pickFiles()
+    expect(invoke.mock.calls).toEqual([[IPC.projectPickFiles]])
+  })
+
   it('exposes session dock open/tree/preview IPC', () => {
     const fileInput = { sessionId: 's1', relativePath: 'notes.md' }
     exposed.dockOpenRoot('s1' as never)

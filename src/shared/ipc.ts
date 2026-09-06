@@ -54,6 +54,7 @@ export const IPC = {
   sessionsSetModel: 'shy:sessions-set-model',
   projectPickFolder: 'shy:project-pick-folder',
   projectPickFile: 'shy:project-pick-file',
+  projectPickFiles: 'shy:project-pick-files',
   projectTreeList: 'shy:project-tree-list',
   projectFileRead: 'shy:project-file-read',
   projectFileReadDataUrl: 'shy:project-file-read-data-url',
@@ -118,6 +119,8 @@ export type ChatRequest = {
   verifyCommand?: string
   /** 发送瞬间正在查看的文件；不写入用户消息正文 */
   activeView?: ActiveView
+  skills?: { id: string; name: string }[]
+  attachments?: { path: string; name: string; mime: string; kind: 'image' | 'file' }[]
 }
 
 export type GoalChecklistItem = {
@@ -292,6 +295,8 @@ export type BindSessionProjectResult =
 export type ProjectPickFolderResult = { ok: true; path: string } | { ok: false }
 
 export type ProjectPickFileResult = ProjectPickFolderResult
+
+export type ProjectPickFilesResult = { ok: true; paths: string[] } | { ok: false }
 
 export type ProjectRevealResult = { ok: true } | { ok: false; error: 'path_escape' | 'not_found' }
 

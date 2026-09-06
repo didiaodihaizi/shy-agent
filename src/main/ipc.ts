@@ -292,6 +292,14 @@ export function registerCoreIpc(): void {
     if (result.canceled || result.filePaths.length === 0) return { ok: false as const }
     return { ok: true as const, path: result.filePaths[0] }
   })
+  ipcMain.handle(IPC.projectPickFiles, async () => {
+    if (!mainWindow) return { ok: false as const }
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile', 'multiSelections']
+    })
+    if (result.canceled || result.filePaths.length === 0) return { ok: false as const }
+    return { ok: true as const, paths: result.filePaths }
+  })
   ipcMain.handle(IPC.projectReveal, async (_e, input: { projectId: string; absPath: string }) => {
     const project = getProject(input.projectId)
     if (!project) return { ok: false as const, error: 'not_found' as const }

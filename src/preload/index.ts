@@ -40,6 +40,7 @@ import {
   type ProjectFileRenameResult,
   type ProjectFileReadDataUrlResult,
   type ProjectPickFileResult,
+  type ProjectPickFilesResult,
   type ProjectPickFolderResult,
   type ProjectRevealResult,
   type ProjectTreeListResult,
@@ -190,6 +191,7 @@ const shy = {
   }): Promise<BindSessionProjectResult> => ipcRenderer.invoke(IPC.sessionsBindProject, input),
   pickFolder: (): Promise<ProjectPickFolderResult> => ipcRenderer.invoke(IPC.projectPickFolder),
   pickFile: (): Promise<ProjectPickFileResult> => ipcRenderer.invoke(IPC.projectPickFile),
+  pickFiles: (): Promise<ProjectPickFilesResult> => ipcRenderer.invoke(IPC.projectPickFiles),
   projectReveal: (input: { projectId: string; absPath: string }): Promise<ProjectRevealResult> =>
     ipcRenderer.invoke(IPC.projectReveal, input),
   projectFileReadDataUrl: (input: {

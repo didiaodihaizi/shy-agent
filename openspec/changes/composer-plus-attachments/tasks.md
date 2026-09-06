@@ -1,8 +1,8 @@
 ## 1. 类型与 IPC
 
-- [ ] 1.1 扩展 `ChatRequest`：`skills?`、`attachments?`（path/name/mime/kind）；更新 preload 类型
-- [ ] 1.2 新增或扩展文件多选 IPC（`pickFiles`），返回多个本机路径
-- [ ] 1.3 单测：类型/序列化或 preload 契约不回归
+- [x] 1.1 扩展 `ChatRequest`：`skills?`、`attachments?`（path/name/mime/kind）；更新 preload 类型
+- [x] 1.2 新增或扩展文件多选 IPC（`pickFiles`），返回多个本机路径
+- [x] 1.3 单测：类型/序列化或 preload 契约不回归
 
 ## 2. 读图与上下文组装（main）
 

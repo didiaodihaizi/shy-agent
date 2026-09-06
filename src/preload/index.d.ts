@@ -31,6 +31,7 @@ import type {
   ProjectFileRenameInput,
   ProjectFileRenameResult,
   ProjectPickFileResult,
+  ProjectPickFilesResult,
   ProjectPickFolderResult,
   ProjectRevealResult,
   ProjectTreeListResult,
@@ -163,6 +164,7 @@ export interface ShyApi {
   }) => Promise<BindSessionProjectResult>
   pickFolder: () => Promise<ProjectPickFolderResult>
   pickFile: () => Promise<ProjectPickFileResult>
+  pickFiles: () => Promise<ProjectPickFilesResult>
   projectReveal: (input: { projectId: string; absPath: string }) => Promise<ProjectRevealResult>
   projectFileReadDataUrl: (input: {
     projectId: string
