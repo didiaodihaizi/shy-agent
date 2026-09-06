@@ -221,6 +221,25 @@ describe('sessions runStatus', () => {
     expect(store.getSession('legacy-m')?.model).toBe('gpt-4o-mini')
   })
 
+  it('listSessionsForUi 隐藏无 user 消息的 interactive，保留 goal 与已发起对话', async () => {
+    const store = await import('./store')
+    const { getDb } = await import('../memory/db')
+    const emptyInteractive = store.createSession('interactive', '空草稿')
+    const started = store.createSession('interactive', '已聊')
+    const goalIdle = store.createSession('goal', '定时')
+    getDb()
+      .prepare(
+        `INSERT INTO session_messages (id, session_id, role, content, created_at, kind)
+         VALUES (?, ?, 'user', 'hi', '2026-01-01T00:00:00.000Z', NULL)`
+      )
+      .run('m1', started.id)
+    const ui = store.listSessionsForUi().map((s) => s.id)
+    expect(ui).toContain(started.id)
+    expect(ui).toContain(goalIdle.id)
+    expect(ui).not.toContain(emptyInteractive.id)
+    expect(store.listSessions().map((s) => s.id)).toContain(emptyInteractive.id)
+  })
+
   it('按 runStatus 仅列出 goal 会话', async () => {
     const store = await import('./store')
     const running = store.createSession('goal', 'running')

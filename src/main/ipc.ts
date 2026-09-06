@@ -44,6 +44,7 @@ import {
   getSessionMessagesPage,
   listGoalSessionsByRunStatus,
   listSessions,
+  listSessionsForUi,
   setSessionModel,
   updateSessionRuntime
 } from './sessions/store'
@@ -217,12 +218,14 @@ export function registerCoreIpc(): void {
     return { ok: true }
   })
 
-  ipcMain.handle(IPC.sessionsList, async () => listSessions())
+  ipcMain.handle(IPC.sessionsList, async () => listSessionsForUi())
   ipcMain.handle(IPC.sessionsGet, async (_e, id: string) => getSession(id))
   ipcMain.handle(IPC.sessionsGetSummary, async (_e, id: string) => getSessionSummary(id))
   ipcMain.handle(IPC.sessionMessagesPage, async (_e, input) => getSessionMessagesPage(input))
-  ipcMain.handle(IPC.sessionsCreate, async (_e, input?: { mode?: AgentMode; title?: string }) =>
-    createSession(input?.mode ?? 'interactive', input?.title)
+  ipcMain.handle(
+    IPC.sessionsCreate,
+    async (_e, input?: { mode?: AgentMode; title?: string; id?: string }) =>
+      createSession(input?.mode ?? 'interactive', input?.title, input?.id)
   )
   ipcMain.handle(IPC.sessionsDelete, async (_e, id: string) => {
     cancelAgent(id)

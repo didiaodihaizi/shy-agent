@@ -90,7 +90,7 @@ const shy = {
     ipcRenderer.invoke(IPC.sessionsGetSummary, id),
   getSessionMessagesPage: (input: SessionMessagesPageInput): Promise<SessionMessagesPage> =>
     ipcRenderer.invoke(IPC.sessionMessagesPage, input),
-  createSession: (input?: { mode?: AgentMode; title?: string }): Promise<SessionSummary> =>
+  createSession: (input?: { mode?: AgentMode; title?: string; id?: string }): Promise<SessionSummary> =>
     ipcRenderer.invoke(IPC.sessionsCreate, input),
   deleteSession: (id: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC.sessionsDelete, id),

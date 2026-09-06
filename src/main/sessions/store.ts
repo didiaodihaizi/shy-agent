@@ -107,6 +107,27 @@ export function listSessions(): SessionSummary[] {
   return rows.map(rowToSummary)
 }
 
+/**
+ * 侧栏可见会话：已真正发起过对话（有 user 消息）的会话，
+ * 以及 goal 模式会话（定时任务等可能尚未落消息也需可见）。
+ * interactive 空草稿不出现在列表中。
+ */
+export function listSessionsForUi(): SessionSummary[] {
+  ensureSessionTables()
+  const rows = getDb()
+    .prepare(
+      `SELECT s.* FROM sessions s
+       WHERE s.mode = 'goal'
+          OR EXISTS (
+            SELECT 1 FROM session_messages m
+            WHERE m.session_id = s.id AND m.role = 'user'
+          )
+       ORDER BY s.updated_at DESC`
+    )
+    .all() as Record<string, unknown>[]
+  return rows.map(rowToSummary)
+}
+
 export function listGoalSessionsByRunStatus(status: RunStatus): SessionSummary[] {
   ensureSessionTables()
   const rows = getDb()

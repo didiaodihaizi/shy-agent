@@ -44,6 +44,10 @@ type ConfirmState = { action: string; detail: string; requestId: string } | null
 
 const NAV_KEY = 'shy.nav'
 
+function newDraftSessionId(): string {
+  return crypto.randomUUID()
+}
+
 function readNav(): NavKey {
   try {
     const v = localStorage.getItem(NAV_KEY)
@@ -184,10 +188,7 @@ function App(): React.JSX.Element {
       if (list[0]) {
         setSessionId(list[0].id)
       } else {
-        const created = await window.shy.createSession({ mode: 'interactive' })
-        if (!alive) return
-        setSessions([created])
-        setSessionId(created.id)
+        setSessionId(newDraftSessionId())
       }
     })()
     return () => {
@@ -263,10 +264,9 @@ function App(): React.JSX.Element {
     setNav('projects')
   }
 
-  const onNewSession = async (): Promise<void> => {
-    const created = await window.shy.createSession({ mode: 'interactive' })
-    await refreshSessions()
-    setSessionId(created.id)
+  const onNewSession = (): void => {
+    setSessionId(newDraftSessionId())
+    setChatHasConversation(false)
     setNav('projects')
     if (!navExpanded) setNavExpanded(true)
   }
@@ -286,9 +286,8 @@ function App(): React.JSX.Element {
       if (list[0]) {
         setSessionId(list[0].id)
       } else {
-        const created = await window.shy.createSession({ mode: 'interactive' })
-        await refreshSessions()
-        setSessionId(created.id)
+        setSessionId(newDraftSessionId())
+        setChatHasConversation(false)
       }
     }
   }
@@ -318,7 +317,7 @@ function App(): React.JSX.Element {
         groups={groups}
         activeSessionId={sessionId}
         onSelectSession={onSelectSession}
-        onNewSession={() => void onNewSession()}
+        onNewSession={onNewSession}
         onDeleteSession={(id, title) => onDeleteSession(id, title)}
         onDeleteProject={(id, title) => onDeleteProject(id, title)}
         ipcOk={ipcOk}

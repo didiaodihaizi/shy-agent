@@ -760,32 +760,41 @@ export function ChatWorkspace({
     currentSessionIdRef.current = sessionId
     setPendingProjectId(null)
     setBoundProjectId(null)
-    let alive = true
+    setSessionModel(null)
+    setMode('interactive')
+    setPaused(false)
+    setBusy(false)
+    setStatus('')
+    setLastResult(null)
+    setHasMoreHistory(false)
     historyCursorRef.current = null
     setMessages([])
     setStreamingTurn([])
+    editor?.commands.clearContent()
+    let alive = true
     window.shy.getSessionSummary(sessionId).then((detail) => {
-      if (!alive || currentSessionIdRef.current !== sessionId || !detail) return
+      if (!alive || currentSessionIdRef.current !== sessionId) return
+      if (!detail) return
       setMode(detail.mode)
       setPaused(detail.paused)
       setBusy(detail.runStatus === 'running')
       setSessionModel(detail.model ?? null)
       setBoundProjectId(resolveBoundProjectId(detail.projectId))
-      setStatus('')
-      setLastResult(null)
-       void window.shy
-         .getSessionMessagesPage({ sessionId, limit: 50 })
-         .then((page) => {
-           if (!alive || currentSessionIdRef.current !== sessionId) return
-           historyCursorRef.current = page.nextCursor
-           setHasMoreHistory(page.hasMore)
-           setMessages(page.messages.map(toMsg))
-         })
-         .catch(() => setMessages([]))
+      void window.shy
+        .getSessionMessagesPage({ sessionId, limit: 50 })
+        .then((page) => {
+          if (!alive || currentSessionIdRef.current !== sessionId) return
+          historyCursorRef.current = page.nextCursor
+          setHasMoreHistory(page.hasMore)
+          setMessages(page.messages.map(toMsg))
+        })
+        .catch(() => setMessages([]))
     })
     return () => {
       alive = false
     }
+    // 仅随 session 切换重置；editor 实例稳定，避免重复清空
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
   const loadOlderMessages = useCallback(async (): Promise<void> => {
@@ -1154,7 +1163,19 @@ export function ChatWorkspace({
   const onSend = async (): Promise<void> => {
     const text = serializeComposerText(editor).trim()
     if (!text || busy || !sessionId) return
-    const detail = await window.shy.getSessionSummary(sessionId)
+    let detail = await window.shy.getSessionSummary(sessionId)
+    // 草稿会话：首条消息发出前才落库，便于侧栏在发起对话后才出现
+    if (!detail) {
+      await window.shy.createSession({
+        mode,
+        title: text.slice(0, 40),
+        id: sessionId
+      })
+      if (sessionModel) {
+        await window.shy.setSessionModel(sessionId, sessionModel)
+      }
+      detail = await window.shy.getSessionSummary(sessionId)
+    }
     const hasUser = messages.some((m) => m.role === 'user')
     const boundId = resolveBoundProjectId(detail?.projectId)
     if (
