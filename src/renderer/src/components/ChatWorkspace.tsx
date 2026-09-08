@@ -36,7 +36,8 @@ import {
   type ComposerAttachmentChip,
   type ComposerSkillChip
 } from '../lib/composerAttachments'
-import { decodeUserMessageContent } from '../../../shared/user-message-meta'
+import { historyMessageToUiMsg } from '../lib/historyMessageToUiMsg'
+import type { ChatMessage } from '../../../shared/ipc'
 import {
   BIND_ERROR_LABEL,
   chatStatusTone,
@@ -97,35 +98,8 @@ type Msg = {
   attachments?: ComposerAttachmentChip[]
 }
 
-function toMsg(m: {
-  id: string
-  role: Msg['role']
-  content: string
-  createdAt: string
-  kind?: 'result'
-}): Msg {
-  if (m.role === 'user') {
-    const { text, meta } = decodeUserMessageContent(m.content)
-    return {
-      id: m.id,
-      role: m.role,
-      content: text,
-      createdAt: m.createdAt,
-      kind: m.kind,
-      streaming: false,
-      skills: meta.skills,
-      attachments: meta.attachments as ComposerAttachmentChip[] | undefined
-    }
-  }
-  return {
-    id: m.id,
-    role: m.role,
-    content: m.content,
-    createdAt: m.createdAt,
-    kind: m.kind,
-    streaming: false,
-    toolStatus: m.role === 'tool' ? 'done' : undefined
-  }
+function toMsg(m: ChatMessage): Msg {
+  return historyMessageToUiMsg(m) as Msg
 }
 
 // zcode-home-replica：3 条列表式示例（替换原 pills 建议）

@@ -2,6 +2,10 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { ActiveView, GoalChecklistItem, RunStatus } from '../../shared/ipc'
 import { getSession, updateSessionRuntime, appendMessage, getCheckpoint } from '../sessions/store'
+import {
+  createTimelinePersistState,
+  persistTimelineEvent
+} from '../sessions/timeline-persist'
 import { getSettings } from '../settings/store'
 import { resolveLlmConfig } from './llm-config'
 import { getShyPaths } from '../paths'
@@ -293,6 +297,7 @@ export async function runGoalDriver(args: {
       if (getAgentRuntime(sessionId) === rt) {
         emit({ type: 'result', content: delivered.content, reportPath })
         appendMessage(sessionId, 'assistant', delivered.content, 'result')
+        persistTimelineEvent(sessionId, { type: 'done', reason: 'completed' }, createTimelinePersistState())
         emit({ type: 'done', reason: 'completed' })
       }
       return true
@@ -632,6 +637,7 @@ async function defaultRunBurst(opts: {
 
   // 目标模式思考流文本（每步工具调用前落盘一次，供会话回放）
   let pendingAssistantText = ''
+  const timelinePersist = createTimelinePersistState()
 
   // 技能目录 + 长期记忆（与交互式 service.ts 同源同预算）
   const goalSkillCatalog = renderSkillCatalog(
@@ -652,8 +658,8 @@ async function defaultRunBurst(opts: {
     emit: (event) => {
       if (event.type === 'status' && event.message) emit({ type: 'status', message: event.message })
       if (event.type === 'assistant' && event.content) {
+        persistTimelineEvent(sessionId, event, timelinePersist)
         emit({ type: 'assistant', content: event.content })
-        appendMessage(sessionId, 'assistant', event.content)
       }
       // 目标模式的思考过程流（与交互式 service.ts 一致）— 否则 UI 只能看到工具调用链
       if (event.type === 'assistant_delta' && event.content) {
@@ -661,21 +667,29 @@ async function defaultRunBurst(opts: {
         emit({ type: 'assistant_delta', content: event.content })
       }
       if (event.type === 'reasoning_delta' && event.content) {
+        persistTimelineEvent(sessionId, event, timelinePersist)
         emit({ type: 'reasoning_delta', content: event.content })
       }
       if (event.type === 'reasoning_done') {
+        persistTimelineEvent(sessionId, event, timelinePersist)
         emit({ type: 'reasoning_done' })
       }
       if (event.type === 'tool_call' && event.id) {
         // 工具调用开始 = 上一段思考流已完整：落盘 + 停掉渲染层打字光标
         if (pendingAssistantText.trim()) {
-          appendMessage(sessionId, 'assistant', pendingAssistantText)
+          persistTimelineEvent(
+            sessionId,
+            { type: 'assistant', content: pendingAssistantText },
+            timelinePersist
+          )
           pendingAssistantText = ''
         }
+        persistTimelineEvent(sessionId, event, timelinePersist)
         emit({ type: 'assistant_done' })
         emit({ type: 'tool_call', id: event.id, name: event.name ?? 'tool', input: event.input })
       }
       if (event.type === 'tool_result' && event.id) {
+        persistTimelineEvent(sessionId, event, timelinePersist)
         emit({ type: 'tool_result', id: event.id, output: event.output, error: event.error })
       }
       if (event.type === 'error' && event.message) {
@@ -739,6 +753,15 @@ async function defaultRunBurst(opts: {
   }
   if (Number.isFinite(Number(result?.blockedRounds))) {
     opts.blockedRoundsRef.current = Math.max(0, Math.floor(Number(result.blockedRounds)))
+  }
+
+  if (pendingAssistantText.trim()) {
+    persistTimelineEvent(
+      sessionId,
+      { type: 'assistant', content: pendingAssistantText },
+      timelinePersist
+    )
+    pendingAssistantText = ''
   }
 
   return {
