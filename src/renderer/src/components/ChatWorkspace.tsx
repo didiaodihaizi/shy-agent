@@ -10,6 +10,12 @@ import type {
 } from '../../../shared/ipc'
 import { MarkdownBody } from './MarkdownBody'
 import { AgentTimeline } from './chat/AgentTimeline'
+import { isAgentEventForActiveSession } from './chat/isAgentEventForActiveSession'
+import {
+  applyChatAgentEvent,
+  emptySessionChatSnapshot,
+  type SessionChatSnapshot
+} from './chat/sessionChatCache'
 import { messagesToSegments } from './chat/turnSegments'
 import { SlashMenu, type SlashItem } from './chat/SlashMenu'
 import { serializeComposerText } from './chat/composerMention'
@@ -243,11 +249,29 @@ export function ChatWorkspace({
   const threadRef = useRef<HTMLDivElement>(null)
   const stickToBottomRef = useRef(true)
   const currentSessionIdRef = useRef(sessionId)
+  const prevSessionIdRef = useRef<string | null>(null)
+  const sessionChatCacheRef = useRef(new Map<string, SessionChatSnapshot>())
+  const messagesRef = useRef<Msg[]>([])
   const historyCursorRef = useRef<{ beforeCreatedAt: string; beforeId: string } | null>(null)
   const turnStartedAtRef = useRef<number | null>(null)
   const streamingTurnRef = useRef<Msg[]>([])
   const pendingDeltaRef = useRef<{ role: 'assistant' | 'reasoning'; content: string } | null>(null)
   const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const busyRef = useRef(false)
+  const pausedRef = useRef(false)
+  const statusRef = useRef('')
+  const lastResultRef = useRef<{
+    tokenUsed: number
+    rounds: number
+    durationMs: number
+    reportPath?: string
+    at: number
+  } | null>(null)
+  messagesRef.current = messages
+  busyRef.current = busy
+  pausedRef.current = paused
+  statusRef.current = status
+  lastResultRef.current = lastResult
   useEffect(() => {
     currentSessionIdRef.current = sessionId
   }, [sessionId])
@@ -872,23 +896,125 @@ export function ChatWorkspace({
     )
   }
 
+  const captureLiveSnapshot = useCallback((): SessionChatSnapshot => {
+    if (deltaTimerRef.current) {
+      clearTimeout(deltaTimerRef.current)
+      deltaTimerRef.current = null
+    }
+    // 把未刷完的 delta 并进 streaming，再入缓存
+    const pending = pendingDeltaRef.current
+    let streaming = streamingTurnRef.current
+    if (pending) {
+      const last = streaming.at(-1)
+      streaming =
+        last?.role === pending.role
+          ? [
+              ...streaming.slice(0, -1),
+              { ...last, content: last.content + pending.content, streaming: true }
+            ]
+          : [
+              ...streaming,
+              {
+                role: pending.role,
+                content: pending.content,
+                createdAt: new Date().toISOString(),
+                streaming: true,
+                ...(pending.role === 'reasoning' ? { reasoningStartedAt: Date.now() } : {})
+              }
+            ]
+      pendingDeltaRef.current = null
+      streamingTurnRef.current = streaming
+    }
+    return {
+      messages: messagesRef.current,
+      streamingTurn: streaming,
+      pendingDelta: null,
+      busy: busyRef.current,
+      paused: pausedRef.current,
+      status: statusRef.current,
+      turnStartedAt: turnStartedAtRef.current,
+      lastResult: lastResultRef.current
+    }
+  }, [])
+
+  const restoreSnapshot = useCallback((snap: SessionChatSnapshot): void => {
+    if (deltaTimerRef.current) {
+      clearTimeout(deltaTimerRef.current)
+      deltaTimerRef.current = null
+    }
+    pendingDeltaRef.current = snap.pendingDelta
+    streamingTurnRef.current = snap.streamingTurn as Msg[]
+    turnStartedAtRef.current = snap.turnStartedAt
+    setMessages(snap.messages as Msg[])
+    setStreamingTurn(snap.streamingTurn as Msg[])
+    setBusy(snap.busy)
+    setPaused(snap.paused)
+    setStatus(snap.status)
+    setLastResult(snap.lastResult)
+  }, [])
+
   useLayoutEffect(() => {
+    const prev = prevSessionIdRef.current
+    if (prev && prev !== sessionId) {
+      const snap = captureLiveSnapshot()
+      const existing = sessionChatCacheRef.current.get(prev)
+      // 勿用「刚清空的空快照」覆盖已有缓存（异步历史尚未返回时切走）
+      if (
+        !existing ||
+        snap.messages.length > 0 ||
+        snap.streamingTurn.length > 0 ||
+        snap.busy ||
+        snap.pendingDelta
+      ) {
+        sessionChatCacheRef.current.set(prev, snap)
+      }
+    }
+    prevSessionIdRef.current = sessionId
     currentSessionIdRef.current = sessionId
+
     setPendingProjectId(null)
     setBoundProjectId(null)
     setSessionModel(null)
     setMode('interactive')
+    setHasMoreHistory(false)
+    historyCursorRef.current = null
+    editor?.commands.clearContent()
+    setComposerSkills([])
+    setComposerAttachments([])
+
+    const cached = sessionChatCacheRef.current.get(sessionId)
+    if (cached) {
+      restoreSnapshot(cached)
+      let alive = true
+      window.shy.getSessionSummary(sessionId).then((detail) => {
+        if (!alive || currentSessionIdRef.current !== sessionId) return
+        if (!detail) return
+        setMode(detail.mode)
+        setSessionModel(detail.model ?? null)
+        setBoundProjectId(resolveBoundProjectId(detail.projectId))
+        // 缓存优先保留进行中时间轴；仅用服务端校正 paused/busy（若缓存已 done 则以缓存为准）
+        if (detail.runStatus === 'running' && !cached.busy) setBusy(true)
+        if (detail.paused) setPaused(true)
+      })
+      return () => {
+        alive = false
+      }
+    }
+
+    if (deltaTimerRef.current) {
+      clearTimeout(deltaTimerRef.current)
+      deltaTimerRef.current = null
+    }
+    pendingDeltaRef.current = null
+    streamingTurnRef.current = []
+    turnStartedAtRef.current = null
     setPaused(false)
     setBusy(false)
     setStatus('')
     setLastResult(null)
-    setHasMoreHistory(false)
-    historyCursorRef.current = null
     setMessages([])
     setStreamingTurn([])
-    editor?.commands.clearContent()
-    setComposerSkills([])
-    setComposerAttachments([])
+
     let alive = true
     window.shy.getSessionSummary(sessionId).then((detail) => {
       if (!alive || currentSessionIdRef.current !== sessionId) return
@@ -901,12 +1027,47 @@ export function ChatWorkspace({
       void window.shy
         .getSessionMessagesPage({ sessionId, limit: 50 })
         .then((page) => {
-          if (!alive || currentSessionIdRef.current !== sessionId) return
+          const dbMsgs = page.messages.map(toMsg)
+          if (!alive || currentSessionIdRef.current !== sessionId) {
+            // 已切走：把 DB 历史并入该会话缓存，避免回来时空洞
+            const existing = sessionChatCacheRef.current.get(sessionId) ?? emptySessionChatSnapshot()
+            if (existing.messages.length === 0 && existing.streamingTurn.length === 0) {
+              sessionChatCacheRef.current.set(sessionId, {
+                ...existing,
+                messages: dbMsgs,
+                busy: existing.busy || detail.runStatus === 'running',
+                paused: detail.paused || existing.paused
+              })
+            } else if (
+              dbMsgs.length > 0 &&
+              !existing.messages.some((m) => m.role === 'user' || m.id)
+            ) {
+              sessionChatCacheRef.current.set(sessionId, {
+                ...existing,
+                messages: [...dbMsgs, ...existing.messages]
+              })
+            }
+            return
+          }
+          const again = sessionChatCacheRef.current.get(sessionId)
+          if (again && (again.messages.length > 0 || again.streamingTurn.length > 0)) {
+            restoreSnapshot(again)
+            return
+          }
           historyCursorRef.current = page.nextCursor
           setHasMoreHistory(page.hasMore)
-          setMessages(page.messages.map(toMsg))
+          setMessages(dbMsgs)
+          sessionChatCacheRef.current.set(sessionId, {
+            ...emptySessionChatSnapshot(),
+            messages: dbMsgs,
+            busy: detail.runStatus === 'running',
+            paused: detail.paused
+          })
         })
-        .catch(() => setMessages([]))
+        .catch(() => {
+          if (!alive || currentSessionIdRef.current !== sessionId) return
+          if (!sessionChatCacheRef.current.has(sessionId)) setMessages([])
+        })
     })
     return () => {
       alive = false
@@ -1024,7 +1185,17 @@ export function ChatWorkspace({
         question?: string
         options?: string[]
       }
-      if (ev.sessionId && ev.sessionId !== sessionId) return
+      // 离屏会话：事件写入缓存，保留工具时间轴；勿污染当前 UI
+      if (ev.sessionId && ev.sessionId !== currentSessionIdRef.current) {
+        const cache = sessionChatCacheRef.current
+        const prev = cache.get(ev.sessionId) ?? emptySessionChatSnapshot()
+        cache.set(ev.sessionId, applyChatAgentEvent(prev, ev))
+        if (ev.type === 'done' || ev.type === 'goal_complete' || ev.type === 'session') {
+          onSessionsChanged?.()
+        }
+        return
+      }
+      if (!isAgentEventForActiveSession(ev.sessionId, currentSessionIdRef.current)) return
       if (ev.type === 'result' && ev.content) {
         flushStreaming()
         const streamed = streamingTurnRef.current

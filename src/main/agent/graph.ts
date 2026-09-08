@@ -91,7 +91,7 @@ export function mapChecklistItem(
 }
 
 export function buildAgentGraph(opts: {
-  llm: { baseURL: string; apiKey: string; model: string }
+  llm: { baseURL: string; apiKey: string; model: string; defaultHeaders?: Record<string, string> }
   tools: ShyTool[]
   emit: GraphEmit
   skillBlock: string
@@ -130,7 +130,7 @@ export function buildAgentGraph(opts: {
  * 跟 LangGraph StateGraph 输出兼容。
  */
 function buildV2Graph(opts: {
-  llm: { baseURL: string; apiKey: string; model: string }
+  llm: { baseURL: string; apiKey: string; model: string; defaultHeaders?: Record<string, string> }
   tools: ShyTool[]
   emit: GraphEmit
   skillBlock: string
@@ -250,6 +250,7 @@ function buildV2Graph(opts: {
             baseURL: opts.llm.baseURL,
             apiKey: opts.llm.apiKey,
             model: opts.llm.model,
+            defaultHeaders: opts.llm.defaultHeaders,
             signal
           })
         : null

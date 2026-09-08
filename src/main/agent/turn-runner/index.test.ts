@@ -7,9 +7,11 @@ import { buildTools } from '../tools/registry'
 let callCount = 0
 const seenSystemPrompts: string[] = []
 const seenLlmMessages: unknown[] = []
+const seenLlmConfigs: unknown[] = []
 vi.mock('../llm-client', () => ({
-  streamChatCompletion: async function* (_config: unknown, messages: unknown) {
+  streamChatCompletion: async function* (config: unknown, messages: unknown) {
     callCount += 1
+    seenLlmConfigs.push(config)
     seenLlmMessages.push(messages)
     const sysMsg = (messages as Array<{ role: string; content: string }>).find(
       (m) => m.role === 'system'
@@ -111,6 +113,45 @@ describe('runTurn 端到端', () => {
       id: 'tc-1',
       type: 'function',
       function: { name: 'runtime_ping', arguments: '{"note":"first"}' }
+    })
+  })
+
+  it('callLLM 透传 llm.defaultHeaders（OpenCode Go session 头）', async () => {
+    callCount = 0
+    seenLlmConfigs.length = 0
+    const tools = buildTools({
+      emit: () => undefined,
+      confirmHighRisk: async () => true,
+      workspaceDir: '/tmp/shy-test-workspace',
+      sessionId: 'ses-test'
+    }).filter((t) => t.name === 'runtime_ping')
+
+    await runTurn(
+      {
+        ...baseInput,
+        llm: {
+          ...baseInput.llm,
+          defaultHeaders: {
+            'x-opencode-session': 'sess-abc',
+            'x-opencode-client': 'shy'
+          }
+        }
+      },
+      {
+        emit: () => undefined,
+        getReactGuide: (mode) => `【${mode}】`,
+        tools,
+        mode: 'act',
+        startTurn: 0
+      }
+    )
+
+    expect(seenLlmConfigs.length).toBeGreaterThan(0)
+    expect(seenLlmConfigs[0]).toMatchObject({
+      defaultHeaders: {
+        'x-opencode-session': 'sess-abc',
+        'x-opencode-client': 'shy'
+      }
     })
   })
 

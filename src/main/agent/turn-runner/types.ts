@@ -81,6 +81,8 @@ export type TurnInput = {
     apiKey: string
     model: string
     temperature?: number
+    /** OpenCode Go 等网关头（须透传到 streamChatCompletion） */
+    defaultHeaders?: Record<string, string>
   }
   /** 技能目录 block（catalog 注入，见 skills/catalog.ts） */
   skillBlock?: string

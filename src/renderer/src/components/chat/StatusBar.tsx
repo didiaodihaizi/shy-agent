@@ -15,8 +15,9 @@
  * - errored    → 错误,显示「出错:...」
  * - done       → 完成,显示「完成」
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AgentEvent } from '../../../../shared/ipc'
+import { isAgentEventForActiveSession } from './isAgentEventForActiveSession'
 
 type RunState = 'idle' | 'thinking' | 'tool-calling' | 'paused' | 'errored' | 'done'
 
@@ -44,6 +45,8 @@ type Props = {
 
 export function StatusBar({ sessionId, onCancel }: Props): React.JSX.Element {
   const [status, setStatus] = useState<StatusInfo>(INITIAL)
+  const sessionIdRef = useRef(sessionId)
+  sessionIdRef.current = sessionId
 
   useEffect(() => {
     setStatus(INITIAL)
@@ -52,7 +55,7 @@ export function StatusBar({ sessionId, onCancel }: Props): React.JSX.Element {
   useEffect(() => {
     const off = window.shy.onEvent((payload) => {
       const ev = payload as AgentEvent & { sessionId?: string }
-      if (ev.sessionId && ev.sessionId !== sessionId) return
+      if (!isAgentEventForActiveSession(ev.sessionId, sessionIdRef.current)) return
       switch (ev.type) {
         case 'status':
           setStatus((s) => ({
@@ -94,7 +97,7 @@ export function StatusBar({ sessionId, onCancel }: Props): React.JSX.Element {
       }
     })
     return off
-  }, [sessionId])
+  }, [])
 
   return (
     <div className={`status-bar status-${status.state}`}>

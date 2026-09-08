@@ -61,6 +61,35 @@ describe('resolveLlmConfig', () => {
     expect(resolved.model).toBe('global-model')
   })
 
+  it('opencode-go 带会话 id 时附加 x-opencode-session', () => {
+    const resolved = resolveLlmConfig(
+      {
+        ...customSettings,
+        provider: 'opencode-go'
+      },
+      { id: 'sess-abc', model: 'deepseek-v4-flash' }
+    )
+    expect(resolved.defaultHeaders).toMatchObject({
+      'x-opencode-session': 'sess-abc',
+      'x-opencode-client': 'shy'
+    })
+    expect(resolved.defaultHeaders?.['User-Agent']).toMatch(/^shy\//)
+  })
+
+  it('custom 不附加 opencode 路由头', () => {
+    const resolved = resolveLlmConfig(customSettings, { id: 'sess-abc' })
+    expect(resolved.defaultHeaders).toBeUndefined()
+  })
+
+  it('opencode-go 无会话 id 时仍发稳定路由头（避免 400）', () => {
+    const resolved = resolveLlmConfig({
+      ...customSettings,
+      provider: 'opencode-go'
+    })
+    expect(resolved.defaultHeaders?.['x-opencode-session']).toBeTruthy()
+    expect(resolved.defaultHeaders?.['x-opencode-client']).toBe('shy')
+  })
+
   it('session.model 优先于 settings.model', () => {
     const resolved = resolveLlmConfig(customSettings, { model: 'session-model' })
     expect(resolved.model).toBe('session-model')

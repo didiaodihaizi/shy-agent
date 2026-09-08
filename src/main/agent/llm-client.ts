@@ -37,6 +37,16 @@ export type LLMClientConfig = {
   baseURL: string
   apiKey: string
   model: string
+  /** 透传给 OpenAI SDK（如 OpenCode Go 的 x-opencode-session） */
+  defaultHeaders?: Record<string, string>
+}
+
+function createOpenAI(config: LLMClientConfig): OpenAI {
+  return new OpenAI({
+    baseURL: config.baseURL,
+    apiKey: config.apiKey,
+    ...(config.defaultHeaders ? { defaultHeaders: config.defaultHeaders } : {})
+  })
 }
 
 export const DEFAULT_MAX_OUTPUT_TOKENS = 8192
@@ -56,10 +66,7 @@ export async function* streamChatCompletion(
   tools: ChatCompletionTool[],
   options?: { signal?: AbortSignal; maxTokens?: number }
 ): AsyncGenerator<LLMStreamEvent> {
-  const openai = new OpenAI({
-    baseURL: config.baseURL,
-    apiKey: config.apiKey
-  })
+  const openai = createOpenAI(config)
 
   const stream = await openai.chat.completions.create(
     {
@@ -73,7 +80,10 @@ export async function* streamChatCompletion(
       // 不传时 MiniMax 等网关常默认 1024，思考把额度用光后正文会截在半截 XML
       max_tokens: options?.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS
     },
-    { signal: options?.signal }
+    {
+      signal: options?.signal,
+      ...(config.defaultHeaders ? { headers: config.defaultHeaders } : {})
+    }
   )
 
   /** tool_calls 累积（按 index 分组） */
@@ -178,7 +188,7 @@ export async function invokeChatCompletion(
   toolCalls: ChatCompletionMessageToolCall[]
   usage: { promptTokens: number; completionTokens: number; totalTokens: number }
 }> {
-  const openai = new OpenAI({ baseURL: config.baseURL, apiKey: config.apiKey })
+  const openai = createOpenAI(config)
   const res = await openai.chat.completions.create(
     {
       model: config.model,
@@ -187,7 +197,10 @@ export async function invokeChatCompletion(
       max_tokens: options?.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       ...(options?.tools?.length ? { tools: options.tools, tool_choice: 'auto' as const } : {})
     },
-    { signal: options?.signal }
+    {
+      signal: options?.signal,
+      ...(config.defaultHeaders ? { headers: config.defaultHeaders } : {})
+    }
   )
   const msg = res.choices[0]?.message
   const content = msg?.content ?? ''

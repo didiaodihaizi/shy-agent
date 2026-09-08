@@ -105,7 +105,10 @@ export async function runVerifyLLM(input: {
   }
 
   const session = input.sessionId ? getSession(input.sessionId) : undefined
-  const llmConfig = resolveLlmConfig(settings, session ?? undefined)
+  const llmConfig = resolveLlmConfig(
+    settings,
+    input.sessionId ? { id: input.sessionId, model: session?.model } : undefined
+  )
 
   const pending = input.checklist.filter((c) => !c.done)
   const done = input.checklist.filter((c) => c.done)

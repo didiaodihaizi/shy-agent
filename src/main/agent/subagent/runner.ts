@@ -24,7 +24,12 @@ import { getSubagentTask, updateSubagentTask } from './store'
 
 export type SubagentRunDeps = {
   /** LLM 配置（baseURL/apiKey/model） */
-  llmConfig: { baseURL: string; apiKey: string; model: string }
+  llmConfig: {
+    baseURL: string
+    apiKey: string
+    model: string
+    defaultHeaders?: Record<string, string>
+  }
   /** 工具上下文：emit / confirmHighRisk / sessionId */
   toolCtx: ToolContext
   /** budget（0=无限） */
