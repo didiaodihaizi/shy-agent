@@ -453,7 +453,8 @@ export async function runTurn(input: TurnInput, deps: RunTurnDeps): Promise<Turn
         {
           baseURL: input.llm.baseURL,
           apiKey: input.llm.apiKey,
-          model: input.llm.model
+          model: input.llm.model,
+          defaultHeaders: input.llm.defaultHeaders
         },
         llmMessages,
         openaiTools,

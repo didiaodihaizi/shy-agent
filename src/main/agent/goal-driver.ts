@@ -512,7 +512,7 @@ async function defaultDeliver(
     const settings = await getSettings()
     if (!settings.apiKey) return fallback
     const session = getSession(sessionId)
-    const llm = resolveLlmConfig(settings, session ?? undefined)
+    const llm = resolveLlmConfig(settings, { id: sessionId, model: session?.model })
     const evidence = input.checklist
       .map((c) => `## ${c.title}\n${c.evidence ?? '（无证据）'}`)
       .join('\n\n')
@@ -547,7 +547,7 @@ async function defaultPlanChecklist(
     throw new Error('尚未配置 apiKey，请先在设置中填写 OpenAI-compatible 凭证')
   }
   const session = getSession(sessionId)
-  const llm = resolveLlmConfig(settings, session ?? undefined)
+  const llm = resolveLlmConfig(settings, { id: sessionId, model: session?.model })
   const { content: resContent } = await invokeChatCompletion(
     llm,
     [
@@ -644,7 +644,10 @@ async function defaultRunBurst(opts: {
     .join('\n')
 
   const graph = buildAgentGraph({
-    llm: resolveLlmConfig(settings, getSession(sessionId) ?? undefined),
+    llm: resolveLlmConfig(settings, {
+      id: sessionId,
+      model: getSession(sessionId)?.model
+    }),
     tools: [...buildTools(ctx), ...goalTools],
     emit: (event) => {
       if (event.type === 'status' && event.message) emit({ type: 'status', message: event.message })

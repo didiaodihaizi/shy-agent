@@ -43,7 +43,7 @@ export async function prepareAttachmentMessage(
 
   const settings = await getSettings()
   const session = getSession(input.sessionId)
-  const llm = resolveLlmConfig(settings, session ?? undefined)
+  const llm = resolveLlmConfig(settings, { id: input.sessionId, model: session?.model })
   void normalizeProvider(settings.provider)
 
   const sessionModelCapable = isVisionCapable(llm.model)

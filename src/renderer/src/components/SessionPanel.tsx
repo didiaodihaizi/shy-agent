@@ -3,6 +3,7 @@ import type { SessionFileRecord, SessionTaskRecord } from '../../../shared/ipc'
 import { ConfirmDialog } from './ConfirmDialog'
 import { MarkdownBody } from './MarkdownBody'
 import { truncateEvidence } from './goalUi'
+import { isAgentEventForActiveSession } from './chat/isAgentEventForActiveSession'
 
 type Tab = 'tasks' | 'files' | 'outputs'
 
@@ -127,7 +128,7 @@ export function SessionPanel({ sessionId, open, onClose, onOpen }: Props): React
         content?: string
         reportPath?: string
       }
-      if (ev.sessionId && ev.sessionId !== sessionId) return
+      if (!isAgentEventForActiveSession(ev.sessionId, sessionId)) return
       if (ev.type !== 'result') return
       setResultContent(ev.content ?? '')
       setResultReportPath(ev.reportPath ?? '')

@@ -21,6 +21,8 @@ export type SummarizerConfig = {
   apiKey: string
   /** 默认用便宜模型,降低压缩成本 */
   model: string
+  /** 透传网关头（如 OpenCode Go session） */
+  defaultHeaders?: Record<string, string>
   /** 最大输出 chars(默认 4000,避免 summary 自身过长) */
   maxOutputChars?: number
   /** abort signal */
@@ -56,7 +58,8 @@ export function createLlmSummarizer(
   }
   const openai = new OpenAI({
     baseURL: config.baseURL,
-    apiKey: config.apiKey
+    apiKey: config.apiKey,
+    ...(config.defaultHeaders ? { defaultHeaders: config.defaultHeaders } : {})
   })
   const maxChars = config.maxOutputChars ?? 4000
 

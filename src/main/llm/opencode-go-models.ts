@@ -1,4 +1,4 @@
-import { OPENCODE_GO_BASE_URL, normalizeProvider } from '../agent/llm-config'
+import { OPENCODE_GO_BASE_URL, normalizeProvider, buildOpenCodeGoHeaders } from '../agent/llm-config'
 import { httpFetchJson } from '../net/http-get'
 import type { ModelSettings, OpenCodeGoModelsResult } from '../../shared/ipc'
 
@@ -125,7 +125,8 @@ async function fetchRemoteModels(apiKey: string, deps: ListDeps): Promise<string
         signal: ctrl.signal,
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          Accept: 'application/json'
+          Accept: 'application/json',
+          ...buildOpenCodeGoHeaders('shy-models-list')
         }
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -135,7 +136,10 @@ async function fetchRemoteModels(apiKey: string, deps: ListDeps): Promise<string
     }
   } else {
     payload = await httpFetchJson(MODELS_URL, {
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        ...buildOpenCodeGoHeaders('shy-models-list')
+      },
       timeoutMs
     })
   }

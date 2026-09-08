@@ -84,7 +84,10 @@ export function registerTaskTools(): void {
         return JSON.stringify({ ok: false, error: '尚未配置 apiKey' })
       }
       const parentSession = ctx.sessionId ? getSession(ctx.sessionId) : undefined
-      const llmConfig = resolveLlmConfig(settings, parentSession ?? undefined)
+      const llmConfig = resolveLlmConfig(
+        settings,
+        ctx.sessionId ? { id: ctx.sessionId, model: parentSession?.model } : undefined
+      )
       const task = createSubagentTask({
         parentSessionId: ctx.sessionId,
         description: input.description,
@@ -160,7 +163,10 @@ export function registerTaskTools(): void {
         return JSON.stringify({ ok: false, error: '尚未配置 apiKey' })
       }
       const parentSession = ctx.sessionId ? getSession(ctx.sessionId) : undefined
-      const llmConfig = resolveLlmConfig(settings, parentSession ?? undefined)
+      const llmConfig = resolveLlmConfig(
+        settings,
+        ctx.sessionId ? { id: ctx.sessionId, model: parentSession?.model } : undefined
+      )
       const sub = createSubagentTask({
         parentSessionId: ctx.sessionId,
         description: input.task.slice(0, 60),

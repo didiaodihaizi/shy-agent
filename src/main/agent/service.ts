@@ -171,7 +171,10 @@ export async function runAgent(args: RunArgs): Promise<void> {
       return
     }
 
-    const resolveSessionLlm = () => resolveLlmConfig(settings, getSession(sessionId) ?? undefined)
+    const resolveSessionLlm = () => {
+      const s = getSession(sessionId)
+      return resolveLlmConfig(settings, { id: sessionId, model: s?.model })
+    }
 
     // 技能目录注入（minimax-feature-port）：token 预算内渲染 catalog，替代旧 token 匹配注入
     const enabledSkills = await getEnabledSkillEntries()
