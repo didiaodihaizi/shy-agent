@@ -214,12 +214,23 @@ export type McpSetResult = {
   status: McpServerStatus[]
 }
 
+export type ChatMessageMeta = {
+  toolId?: string
+  toolName?: string
+  toolStatus?: 'running' | 'done' | 'failed'
+  toolInput?: unknown
+  toolResult?: unknown
+  toolError?: string
+  durationMs?: number
+}
+
 export type ChatMessage = {
   id: string
-  role: 'user' | 'assistant' | 'system' | 'tool'
+  role: 'user' | 'assistant' | 'system' | 'tool' | 'reasoning'
   content: string
   createdAt: string
   kind?: 'result'
+  meta?: ChatMessageMeta
 }
 
 export type SessionMessagesPageCursor = {

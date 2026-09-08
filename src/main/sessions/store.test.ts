@@ -221,6 +221,75 @@ describe('sessions runStatus', () => {
     expect(store.getSession('legacy-m')?.model).toBe('gpt-4o-mini')
   })
 
+  it('tool upsert：call 插入 running，result 更新同一行', async () => {
+    const store = await import('./store')
+    const s = store.createSession()
+    const inserted = store.upsertSessionToolMessage(s.id, {
+      toolId: 'tc-1',
+      toolName: 'web_fetch',
+      toolStatus: 'running',
+      toolInput: { url: 'https://a.example' }
+    })
+    expect(inserted.role).toBe('tool')
+    expect(inserted.meta).toMatchObject({
+      toolId: 'tc-1',
+      toolName: 'web_fetch',
+      toolStatus: 'running'
+    })
+    const updated = store.upsertSessionToolMessage(s.id, {
+      toolId: 'tc-1',
+      toolName: 'web_fetch',
+      toolStatus: 'done',
+      toolResult: { ok: true }
+    })
+    expect(updated.id).toBe(inserted.id)
+    expect(updated.meta?.toolStatus).toBe('done')
+    expect(updated.meta?.toolResult).toEqual({ ok: true })
+    const page = store.getSessionMessagesPage({ sessionId: s.id, limit: 10 })
+    expect(page.messages.filter((m) => m.role === 'tool')).toHaveLength(1)
+    expect(page.messages[0]?.meta?.toolId).toBe('tc-1')
+  })
+
+  it('appendProcessMessage 写入 reasoning，旧行无 meta 仍可读', async () => {
+    const store = await import('./store')
+    const { getDb } = await import('../memory/db')
+    const s = store.createSession()
+    store.appendProcessMessage(s.id, 'reasoning', '思考中…', { durationMs: 1200 })
+    getDb()
+      .prepare(
+        `INSERT INTO session_messages (id, session_id, role, content, created_at, kind, meta)
+         VALUES ('legacy-msg', ?, 'user', '旧消息', '2026-01-01T00:00:00.000Z', NULL, NULL)`
+      )
+      .run(s.id)
+    const all = store.getSession(s.id)?.messages ?? []
+    const legacy = all.find((m) => m.id === 'legacy-msg')
+    expect(legacy?.content).toBe('旧消息')
+    expect(legacy?.meta).toBeUndefined()
+    expect(all.some((m) => m.role === 'reasoning' && m.meta?.durationMs === 1200)).toBe(true)
+  })
+
+  it('markRunningToolsInterrupted 把 running tool 标为 failed', async () => {
+    const store = await import('./store')
+    const s = store.createSession()
+    store.upsertSessionToolMessage(s.id, {
+      toolId: 't-run',
+      toolName: 'shell_exec',
+      toolStatus: 'running',
+      toolInput: { command: 'sleep 9' }
+    })
+    store.upsertSessionToolMessage(s.id, {
+      toolId: 't-done',
+      toolName: 'web_fetch',
+      toolStatus: 'done',
+      toolResult: 'ok'
+    })
+    const n = store.markRunningToolsInterrupted(s.id)
+    expect(n).toBe(1)
+    const tools = (store.getSession(s.id)?.messages ?? []).filter((m) => m.role === 'tool')
+    expect(tools.find((m) => m.meta?.toolId === 't-run')?.meta?.toolStatus).toBe('failed')
+    expect(tools.find((m) => m.meta?.toolId === 't-done')?.meta?.toolStatus).toBe('done')
+  })
+
   it('listSessionsForUi 隐藏无 user 消息的 interactive，保留 goal 与已发起对话', async () => {
     const store = await import('./store')
     const { getDb } = await import('../memory/db')

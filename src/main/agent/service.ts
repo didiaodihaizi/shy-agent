@@ -8,6 +8,10 @@ import { renderSkillCatalog } from '../skills/catalog'
 import { listLongMemory, upsertSessionTask, deleteSessionTask } from '../memory/db'
 import { compressWithLlm } from '../memory/compress'
 import { appendMessage, getSession, updateSessionRuntime } from '../sessions/store'
+import {
+  createTimelinePersistState,
+  persistTimelineEvent
+} from '../sessions/timeline-persist'
 import { resolveAgentWorkspace } from '../projects/workspace'
 import { summarizeSessionTitle } from '../sessions/title'
 import type { AgentEvent, AgentMode, GoalChecklistItem, TaskSource, ActiveView } from '../../shared/ipc'
@@ -205,6 +209,7 @@ export async function runAgent(args: RunArgs): Promise<void> {
 
     // 记录本次图最后一次 done 事件（segment=内部续段信号，不透传给 UI）
     let lastEmitReason: string | undefined
+    const timelinePersist = createTimelinePersistState()
 
     const graphEmit = (event: {
       type: string
@@ -225,6 +230,7 @@ export async function runAgent(args: RunArgs): Promise<void> {
       output?: unknown
       error?: string
     }): void => {
+      persistTimelineEvent(sessionId, event, timelinePersist)
       if (event.type === 'status' && event.message) emit({ type: 'status', message: event.message })
       if (event.type === 'assistant_delta' && event.content) {
         emit({ type: 'assistant_delta', content: event.content })
@@ -237,7 +243,6 @@ export async function runAgent(args: RunArgs): Promise<void> {
       }
       if (event.type === 'assistant' && event.content) {
         emit({ type: 'assistant', content: event.content })
-        appendMessage(sessionId, 'assistant', event.content)
       }
       if (event.type === 'tool_call' && event.id) {
         emit({ type: 'tool_call', id: event.id, name: event.name ?? 'tool', input: event.input })
