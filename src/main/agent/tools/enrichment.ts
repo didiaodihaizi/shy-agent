@@ -194,7 +194,8 @@ export function registerEnrichmentTools(): void {
   registerTool('fs_edit', (ctx) => ({
     name: 'fs_edit',
     description:
-      '精确替换文件中的 old_string → new_string。old_string 必须在文件中唯一出现，否则拒绝。',
+      '精确替换文件中的 old_string → new_string。old_string 必须在文件中唯一出现，否则拒绝。\n' +
+      '大文件 / 完整 HTML 改写优先多次本工具分段替换，避免一次 fs_write 超长截断。',
     schema: z.object({ path: z.string(), old_string: z.string(), new_string: z.string() }),
     run: async ({ path, old_string, new_string }) => {
       const abs = resolveWorkspacePath(ctx.workspaceDir, path)

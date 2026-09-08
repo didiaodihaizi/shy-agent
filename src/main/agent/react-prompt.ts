@@ -33,7 +33,9 @@ export const REACT_GUIDE_BLOCK = `【可用工具 — 名称必须与 function c
 同一轮只调用一次 ask_user（不要并行两个问题）。options 必须是 JSON 数组，如 ["A","B"]，禁止传字符串或 {"item":[...]}。
 
 【改已有文件】
-工作区或本会话已有 HTML/报告等文件时，用户要求修改 MUST 先 fs_read 再 fs_write 覆盖该文件，禁止只在对话里贴新版而不写盘。优先相对路径（文件名即可）。
+工作区或本会话已有 HTML/报告等文件时，用户要求修改 MUST 先 fs_read 再写盘，禁止只在对话里贴新版。优先相对路径（文件名即可）。
+局部或大段改写优先多次 fs_edit（每次替换一小段唯一 old_string）；仅新建或短文件整页重写才用 fs_write。
+禁止把超长全文（尤其完整 HTML）一次塞进 fs_write——tool 参数易截断导致写入失败。大改按章节多次 fs_edit。
 
 【Visualizer】
 教学/讲解/对比/架构类请求：先 read_me 再 show_widget。复杂主题多次 show_widget，中间必须穿插 prose，禁止连续堆叠 widget。不要只输出长文。

@@ -106,6 +106,23 @@ function tryParseJson(raw: string): unknown {
   }
 }
 
+/**
+ * 解析 tool call 的 arguments JSON。
+ * 部分模型会把整个 object 再 JSON.stringify 一次，导致 parse 后仍是 string。
+ */
+export function parseToolCallArgsJson(args: string): Record<string, unknown> {
+  let value: unknown = JSON.parse(args)
+  for (let i = 0; i < 2 && typeof value === 'string'; i++) {
+    const next = tryParseJson(value)
+    if (next === undefined) break
+    value = next
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('tool args must be a JSON object')
+  }
+  return value as Record<string, unknown>
+}
+
 /** MiniMax 等会把数组编成 { item: T | T[] } / { items: T[] } */
 export function unwrapItemWrapper(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw
@@ -234,7 +251,7 @@ export async function runToolCalls(
       continue
     }
     try {
-      const obj = JSON.parse(tc.args) as Record<string, unknown>
+      const obj = parseToolCallArgsJson(tc.args)
       const parsed = parseToolArgs(tool.schema, obj) as Record<string, unknown>
       const result = await tool.run(parsed)
       emit({ type: 'turn:tool_result', turnId, id: tc.id, output: result })

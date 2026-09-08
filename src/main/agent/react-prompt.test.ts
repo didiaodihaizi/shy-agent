@@ -30,6 +30,8 @@ describe('REACT_GUIDE_BLOCK', () => {
   it('含改已有文件与参数形状规则', () => {
     expect(REACT_GUIDE_BLOCK).toMatch(/改已有文件/)
     expect(REACT_GUIDE_BLOCK).toMatch(/fs_write/)
+    expect(REACT_GUIDE_BLOCK).toMatch(/fs_edit/)
+    expect(REACT_GUIDE_BLOCK).toMatch(/截断|超长|整文件/)
     expect(REACT_GUIDE_BLOCK).toMatch(/同一轮只调用一次 ask_user/)
     expect(REACT_GUIDE_BLOCK).toMatch(/自动 present/)
   })

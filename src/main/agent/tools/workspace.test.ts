@@ -3,7 +3,11 @@ import { mkdtemp, rm, readFile, mkdir, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, isAbsolute } from 'path'
-import { registerBuiltinTools, resolveWorkspacePath } from './builtin'
+import {
+  assertWritableHtmlContent,
+  registerBuiltinTools,
+  resolveWorkspacePath
+} from './builtin'
 import { buildTools } from './registry'
 
 vi.mock('../../memory/db', () => ({
@@ -58,7 +62,50 @@ describe('resolveWorkspacePath', () => {
   })
 })
 
+describe('assertWritableHtmlContent', () => {
+  it('完整 HTML 文档通过', () => {
+    expect(
+      assertWritableHtmlContent(
+        'a.html',
+        '<!DOCTYPE html><html><body>x</body></html>'
+      )
+    ).toBeNull()
+  })
+
+  it('含 html 开标签但无 </html> 视为截断', () => {
+    const err = assertWritableHtmlContent(
+      'a.html',
+      '<!DOCTYPE html><html><body><pre>function foo() {'
+    )
+    expect(err).toMatch(/截断|<\/html>/)
+  })
+
+  it('片段 HTML（无 doctype/html 根）不强制闭合', () => {
+    expect(assertWritableHtmlContent('a.html', '<p>x</p>')).toBeNull()
+  })
+
+  it('非 html 扩展名不检查', () => {
+    expect(assertWritableHtmlContent('a.md', '<html>no close')).toBeNull()
+  })
+})
+
 describe('fs_write / fs_read 会话工作区', () => {
+  it('fs_write 拒绝不完整的 HTML 文档且不落盘', async () => {
+    registerBuiltinTools()
+    const tools = buildTools(ctx)
+    const fsWrite = tools.find((t) => t.name === 'fs_write')!
+    const path = 'broken.html'
+    const res = JSON.parse(
+      await fsWrite.run({
+        path,
+        content: '<!DOCTYPE html>\n<html lang="zh-CN"><body><h1>半截'
+      })
+    )
+    expect(res.ok).toBe(false)
+    expect(String(res.error)).toMatch(/截断|<\/html>/)
+    expect(existsSync(join(ws, path))).toBe(false)
+  })
+
   it('fs_write 相对路径落在 workspace 下', async () => {
     registerBuiltinTools()
     const tools = buildTools(ctx)

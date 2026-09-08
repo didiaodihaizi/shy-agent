@@ -48,6 +48,23 @@ export function resolveWorkspacePath(workspaceDir: string, path: string): string
   return join(workspaceDir, path)
 }
 
+/**
+ * 完整 HTML 文档若缺 </html>，视为 tool 参数截断，拒绝写入。
+ * 片段（仅 <p>…）不强制。返回错误文案；通过则 null。
+ */
+export function assertWritableHtmlContent(path: string, content: string): string | null {
+  if (!/\.html?$/i.test(path)) return null
+  const looksFullDoc = /<!DOCTYPE\s+html/i.test(content) || /<html[\s>]/i.test(content)
+  if (!looksFullDoc) return null
+  if (!/<\/html\s*>/i.test(content)) {
+    return (
+      'HTML 内容疑似截断：含 DOCTYPE/<html> 但缺少 </html>。' +
+      '请改用多次 fs_edit 分段替换，或缩短内容后重写；勿把超长全文一次塞进 fs_write。'
+    )
+  }
+  return null
+}
+
 /** 默认权限下校验路径围栏；完全访问跳过 */
 async function guardWorkspacePath(
   workspaceDir: string,
@@ -143,8 +160,9 @@ export function registerBuiltinTools(): void {
     name: 'fs_write',
     description:
       '写入本地文件（覆盖模式）。自动创建父目录。\n\n' +
-      '何时用：创建新文件、覆盖整个文件（不能增量编辑时）。\n' +
-      '何时不用：改文件某几行用 fs_edit（待加）；追加内容用 cat << EOF 配合 shell_exec。\n' +
+      '何时用：创建新文件；或必须整文件重写且内容较短时。\n' +
+      '何时不用：改已有文件的局部用 fs_edit（可多次）；禁止把超长全文（尤其完整 HTML）一次塞进 content——易截断失败。\n' +
+      '完整 HTML 文档若缺 </html> 会拒绝写入并返回错误。\n' +
       '**安全：写入敏感路径（.ssh / .gnupg / shy settings）或可执行文件（.exe/.sh/.bat/.ps1）会弹确认框 — 用户拒绝则取消。**\n' +
       `注意：是「覆盖」不是「合并」；误用会丢内容。${workspaceCwdHint(ctx.workspaceDir)}。\n` +
       '参数：`path` 必填（写入位置，绝对路径或相对当前工作区）；`content` 必填（完整新内容）。',
@@ -153,6 +171,8 @@ export function registerBuiltinTools(): void {
       const abs = resolveWorkspacePath(ctx.workspaceDir, path)
       const fence = await guardWorkspacePath(ctx.workspaceDir, abs)
       if (!fence.ok) return JSON.stringify({ ok: false, error: fence.error })
+      const htmlErr = assertWritableHtmlContent(path, content)
+      if (htmlErr) return JSON.stringify({ ok: false, error: htmlErr })
       if (isHighRiskOverwrite(abs)) {
         const ok = await ctx.confirmHighRisk('覆盖写敏感/可执行文件', abs)
         if (!ok) return JSON.stringify({ ok: false, error: '用户拒绝' })
@@ -171,7 +191,7 @@ export function registerBuiltinTools(): void {
     description:
       '删除本地文件或目录。\n\n' +
       '何时用：清理临时文件、删除过时资源、目标模式下"删除这个文件"指令。\n' +
-      '何时不用：修改文件用 fs_edit；移走用 mv（shell_exec）；删整个项目目录用 git rm + commit。\n' +
+      '何时不用：修改文件用 fs_edit；移走用 shell_exec（mv）；删整个项目目录用 git rm + commit。\n' +
       '**必须弹确认框**（不可跳过）— 任何删除操作都强制用户手动确认。\n' +
       '`recursive=true` 时会删整个目录（包括子目录）— 谨慎使用。\n' +
       `不可恢复（不进回收站）；删错了只能从 git/restore 找回。${workspaceCwdHint(ctx.workspaceDir)}。\n` +

@@ -200,6 +200,28 @@ describe('runToolCalls', () => {
     expect(parsed.options.map((o) => o.label)).toEqual(['经典打卡', '美食'])
   })
 
+  it('args 被二次 JSON 字符串化时仍能解析成对象（LLM 常见）', async () => {
+    const write: ShyTool<{ path: string; content: string }> = {
+      name: 'fs_write',
+      description: '写',
+      schema: z.object({ path: z.string(), content: z.string() }),
+      run: async ({ path, content }) => JSON.stringify({ ok: true, path, len: content.length })
+    }
+    const inner = JSON.stringify({ path: 'a.html', content: '<p>x</p>' })
+    const emit = vi.fn()
+    const out = await runToolCalls(
+      [write],
+      [{ id: 'd1', name: 'fs_write', args: JSON.stringify(inner) }],
+      'turn_double',
+      emit
+    )
+    expect(JSON.parse(out[0].content)).toEqual({
+      ok: true,
+      path: 'a.html',
+      len: '<p>x</p>'.length
+    })
+  })
+
   it('同轮第二个 ask_user 跳过', async () => {
     const ask: ShyTool<{ question: string }> = {
       name: 'ask_user',
